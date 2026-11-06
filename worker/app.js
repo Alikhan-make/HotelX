@@ -828,7 +828,7 @@ function openAdminDecision(action, id) {
   if (!item) return;
   const titles = { approve: 'Одобрить отель?', reject: 'Отклонить заявку?', 'request-info': 'Запросить дополнительные данные?' };
   const descriptions = { approve: 'Пользователь получит HOTEL_OWNER и business context. Решение будет записано в аудит.', reject: 'Укажите причину — заявитель сможет отправить заявку повторно.', 'request-info': 'Статус изменится на MORE_INFO_REQUIRED.' };
-  showModal('<div class="modal-head"><div><p class="eyebrow">' + item.id + '</p><h2>' + titles[action] + '</h2><p>' + esc(item.hotel) + ' · ' + esc(item.applicant) + '</p></div><button class="btn btn-icon btn-ghost" data-action="close-modal">' + icon('close') + '</button></div><div class="ai-card"><p class="text-sm" style="margin:0;line-height:1.6">' + descriptions[action] + '</p></div>' + (action !== 'approve' ? '<div class="field" style="margin-top:16px"><label>Комментарий</label><textarea class="textarea" placeholder="Причина или список нужных документов"></textarea></div>' : '') + '<div class="modal-actions"><button class="btn" data-action="close-modal">Отмена</button><button class="btn ' + (action === 'reject' ? 'btn-danger' : 'btn-primary') + '" data-confirm-admin="' + action + '" data-id="' + id + '">Подтвердить</button></div>');
+  showModal('<div class="modal-head"><div><p class="eyebrow">' + item.id + '</p><h2>' + titles[action] + '</h2><p>' + esc(item.hotel) + ' · ' + esc(item.applicant) + '</p></div><button class="btn btn-icon btn-ghost" data-action="close-modal">' + icon('close') + '</button></div><div class="ai-card"><p class="text-sm" style="margin:0;line-height:1.6">' + descriptions[action] + '</p></div>' + (action !== 'approve' ? '<div class="field" style="margin-top:16px"><label>Комментарий</label><textarea class="textarea" id="admin-review-note" placeholder="Причина или список нужных документов" required></textarea></div>' : '') + '<div class="modal-actions"><button class="btn" data-action="close-modal">Отмена</button><button class="btn ' + (action === 'reject' ? 'btn-danger' : 'btn-primary') + '" data-confirm-admin="' + action + '" data-id="' + id + '">Подтвердить</button></div>');
 }
 
 async function confirmAdminDecision(button) {
@@ -837,7 +837,7 @@ async function confirmAdminDecision(button) {
   button.disabled = true;
   button.textContent = 'Сохраняем…';
   try {
-    const result = await api('/api/admin/verifications/' + id + '/' + action, { method: 'POST', body: '{}' });
+    const result = await api('/api/admin/verifications/' + id + '/' + action, { method: 'POST', body: JSON.stringify({ reviewNote: $('#admin-review-note')?.value.trim() || '' }) });
     const item = state.verifications.find((verification) => verification.id === id);
     if (item) item.status = result.status;
     closeModal(); render();

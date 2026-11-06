@@ -181,11 +181,49 @@ function generatedId(prefix) {
   return `${prefix}-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 }
 
+function parseCalendarDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
+  if (!match) return null;
+  const year = Number(match[1]); const month = Number(match[2]); const day = Number(match[3]);
+  const timestamp = Date.UTC(year, month - 1, day);
+  const date = new Date(timestamp);
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return timestamp;
+}
+
+function nightlyDates(start, nights) {
+  return Array.from({ length: nights }, (_, index) => new Date(start + index * 86400000).toISOString().slice(0, 10));
+}
+
 async function seedVerificationRows(env) {
   if (!env?.DB) return;
   const statements = VERIFICATIONS.map((item) => env.DB.prepare("INSERT OR IGNORE INTO verification_requests (id, hotel_name, applicant_name, email, phone, address, website, rooms_count, country, status, submitted_at, review_note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
     .bind(item.id, item.hotel, item.applicant, item.email, item.phone, item.address, item.website, item.rooms, item.country, item.status, new Date("2026-11-0" + (item.id === "VR-1028" ? "5" : item.id === "VR-1027" ? "4" : "2") + "T09:00:00Z").toISOString(), item.note || null));
   await env.DB.batch(statements);
+  if (env.BUCKET) {
+    const existing = await env.DB.prepare("SELECT count(*) AS count FROM verification_documents WHERE verification_id LIKE 'VR-10%'").first();
+    if (Number(existing?.count || 0) < 8) {
+      const labelKinds = { "Удостоверение личности": "identity", "Бизнес-регистрация": "business", "Право управления": "ownership" };
+      const documentStatements = [];
+      for (const item of VERIFICATIONS) {
+        documentStatements.push(env.DB.prepare("INSERT OR IGNORE INTO users (id, email, name) VALUES (?, ?, ?)")
+          .bind(actorPlaceholderForSeed(item.id), item.email, item.applicant));
+        for (const label of item.documents) {
+          const kind = labelKinds[label];
+          if (!kind) continue;
+          const objectKey = `verification/demo/${item.id}/${kind}.pdf`;
+          await env.BUCKET.put(objectKey, new TextEncoder().encode(`HotelX demo document\n${item.id}\n${label}`), { httpMetadata: { contentType: "application/pdf" } });
+          documentStatements.push(env.DB.prepare("INSERT OR IGNORE INTO verification_documents (verification_id, kind, object_key, content_type, size_bytes, uploaded_by) VALUES (?, ?, ?, 'application/pdf', ?, ?)")
+            .bind(item.id, kind, objectKey, 64, actorPlaceholderForSeed(item.id)));
+        }
+      }
+      if (documentStatements.length) await env.DB.batch(documentStatements);
+    }
+  }
+}
+
+function actorPlaceholderForSeed(id) {
+  return `demo-applicant-${id.toLowerCase()}`;
 }
 
 async function readVerificationRows(env) {
@@ -206,7 +244,7 @@ async function readVerificationRows(env) {
     id: row.id, userId: row.user_id, hotelId: row.hotel_id, applicant: row.applicant_name, email: row.email, phone: row.phone,
     hotel: row.hotel_name, address: row.address, website: row.website, rooms: row.rooms_count, country: row.country,
     submitted: new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Almaty" }).format(new Date(row.submitted_at)),
-    status: row.status, documents: documentsByRequest.get(row.id) || (row.id.startsWith("VR-10") ? (row.id === "VR-1024" ? ["Удостоверение личности", "Бизнес-регистрация"] : ["Удостоверение личности", "Бизнес-регистрация", "Право управления"]) : []),
+    status: row.status, documents: documentsByRequest.get(row.id) || [],
     note: row.review_note || undefined
   }));
 }
@@ -263,8 +301,8 @@ async function handleApi(request, url, env) {
     if (guests > room.guests) return apiError(400, "ROOM_CAPACITY_EXCEEDED", "Выбранный номер не рассчитан на такое количество гостей.");
     const checkIn = String(body.checkIn || "2026-11-07");
     const checkOut = String(body.checkOut || "2026-11-10");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(checkIn) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOut)) return apiError(400, "INVALID_DATES", "Передайте даты в формате YYYY-MM-DD.");
-    const start = Date.parse(checkIn + "T00:00:00Z"); const end = Date.parse(checkOut + "T00:00:00Z");
+    const start = parseCalendarDate(checkIn); const end = parseCalendarDate(checkOut);
+    if (start === null || end === null) return apiError(400, "INVALID_DATES", "Передайте существующие даты в формате YYYY-MM-DD.");
     const nights = Math.round((end - start) / 86400000);
     if (!Number.isFinite(nights) || nights < 1 || nights > 30) return apiError(400, "INVALID_DATES", "Период должен составлять от 1 до 30 ночей.");
     const total = room.price * nights;
@@ -272,9 +310,10 @@ async function handleApi(request, url, env) {
     const booking = { id: generatedId("HX"), hotel: hotel.name, hotelId: hotel.id, room: room.type, roomId: room.id, checkIn: dateLabel(checkIn), checkOut: dateLabel(checkOut), guests, nights, total, status: "CONFIRMED" };
     if (env?.DB) {
       try {
+        const inventoryStatements = nightlyDates(start, nights).map((stayDate) => env.DB.prepare("INSERT INTO room_inventory (hotel_id, room_id, stay_date, capacity, booked) VALUES (?, ?, ?, ?, 1) ON CONFLICT(hotel_id, room_id, stay_date) DO UPDATE SET booked = booked + 1")
+          .bind(hotel.id, room.id, stayDate, room.left));
         await env.DB.batch([
-          env.DB.prepare("INSERT INTO room_inventory (hotel_id, room_id, check_in, check_out, capacity, booked) VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT(hotel_id, room_id, check_in, check_out) DO UPDATE SET booked = booked + 1")
-            .bind(hotel.id, room.id, checkIn, checkOut, room.left),
+          ...inventoryStatements,
           env.DB.prepare("INSERT INTO bookings (id, guest_user_id, hotel_id, room_id, room_type, check_in, check_out, guests, nights, total, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED')")
             .bind(booking.id, actor.id, hotel.id, room.id, room.type, checkIn, checkOut, guests, nights, total),
           env.DB.prepare("INSERT INTO audit_events (id, actor_user_id, hotel_id, action, resource_type, resource_id, metadata_json) VALUES (?, ?, ?, 'BOOKING_CREATED', 'booking', ?, ?)")
@@ -325,12 +364,14 @@ async function handleApi(request, url, env) {
 
   if (request.method === "POST" && path === "/api/verifications/me/resubmit") {
     const auth = selectedContext(request, actor, "personal"); if (auth.error) return auth.error;
-    const application = await env.DB.prepare("SELECT id FROM verification_requests WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1").bind(actor.id).first();
+    const application = await env.DB.prepare("SELECT id, status FROM verification_requests WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1").bind(actor.id).first();
     if (!application) return apiError(404, "VERIFICATION_NOT_FOUND", "Заявка не найдена.");
-    await env.DB.batch([
-      env.DB.prepare("UPDATE verification_requests SET status = 'PENDING', review_note = NULL, submitted_at = CURRENT_TIMESTAMP WHERE id = ?").bind(application.id),
+    if (!["REJECTED", "MORE_INFO_REQUIRED"].includes(application.status)) return apiError(409, "INVALID_VERIFICATION_TRANSITION", "Повторная отправка доступна только после отказа или запроса дополнительных данных.");
+    const results = await env.DB.batch([
+      env.DB.prepare("UPDATE verification_requests SET status = 'PENDING', review_note = NULL, submitted_at = CURRENT_TIMESTAMP WHERE id = ? AND status IN ('REJECTED', 'MORE_INFO_REQUIRED')").bind(application.id),
       env.DB.prepare("INSERT INTO audit_events (id, actor_user_id, action, resource_type, resource_id) VALUES (?, ?, 'VERIFICATION_RESUBMITTED', 'verification_request', ?)").bind(generatedId("AUD"), actor.id, application.id)
     ]);
+    if (Number(results[0]?.meta?.changes || 0) !== 1) return apiError(409, "VERIFICATION_CONFLICT", "Статус заявки уже изменился. Обновите страницу.");
     return json({ id: application.id, status: "PENDING" });
   }
 
@@ -427,18 +468,27 @@ async function handleApi(request, url, env) {
     const status = statusByAction[adminActionMatch[2]];
     if (env?.DB) {
       await seedVerificationRows(env);
-      const item = await env.DB.prepare("SELECT id, user_id, hotel_id, hotel_name FROM verification_requests WHERE id = ?").bind(adminActionMatch[1]).first();
+      const item = await env.DB.prepare("SELECT id, user_id, hotel_id, hotel_name, status FROM verification_requests WHERE id = ?").bind(adminActionMatch[1]).first();
       if (!item) return apiError(404, "VERIFICATION_NOT_FOUND", "Заявка не найдена.");
+      if (!["PENDING", "IN_REVIEW"].includes(item.status)) return apiError(409, "INVALID_VERIFICATION_TRANSITION", "Решение уже принято. Для изменения требуется отдельный процесс отзыва.");
+      const body = await readBody(request);
+      const reviewNote = String(body.reviewNote || "").trim();
+      if (status !== "APPROVED" && reviewNote.length < 5) return apiError(400, "REVIEW_NOTE_REQUIRED", "Укажите причину или список необходимых данных.");
+      if (status === "APPROVED") {
+        const documents = await env.DB.prepare("SELECT count(DISTINCT kind) AS count FROM verification_documents WHERE verification_id = ? AND kind IN ('identity', 'business', 'ownership')").bind(item.id).first();
+        if (Number(documents?.count || 0) !== 3) return apiError(409, "DOCUMENTS_INCOMPLETE", "Для одобрения нужны документы личности, бизнеса и связи с отелем.");
+      }
       const statements = [
-        env.DB.prepare("UPDATE verification_requests SET status = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE id = ?").bind(status, actor.id, item.id),
-        env.DB.prepare("INSERT INTO audit_events (id, actor_user_id, hotel_id, action, resource_type, resource_id, metadata_json) VALUES (?, ?, ?, ?, 'verification_request', ?, ?)")
-          .bind(generatedId("AUD"), actor.id, item.hotel_id, "VERIFICATION_" + status, item.id, JSON.stringify({ hotelName: item.hotel_name }))
+        env.DB.prepare("UPDATE verification_requests SET status = ?, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ?, review_note = ? WHERE id = ? AND status IN ('PENDING', 'IN_REVIEW')").bind(status, actor.id, status === "APPROVED" ? null : reviewNote, item.id),
+        env.DB.prepare("INSERT OR IGNORE INTO audit_events (id, actor_user_id, hotel_id, action, resource_type, resource_id, metadata_json) VALUES (?, ?, ?, ?, 'verification_request', ?, ?)")
+          .bind(`AUD-VERIFY-${item.id}-${status}`, actor.id, item.hotel_id, "VERIFICATION_" + status, item.id, JSON.stringify({ hotelName: item.hotel_name, reviewNote: status === "APPROVED" ? null : reviewNote }))
       ];
       if (status === "APPROVED" && item.hotel_id) {
-        statements.push(env.DB.prepare("UPDATE hotels SET verification_status = 'VERIFIED', owner_user_id = ? WHERE id = ?").bind(item.user_id, item.hotel_id));
-        if (item.user_id) statements.push(env.DB.prepare("INSERT INTO hotel_memberships (user_id, hotel_id, role, status) VALUES (?, ?, 'HOTEL_OWNER', 'ACTIVE') ON CONFLICT(user_id, hotel_id) DO UPDATE SET role = 'HOTEL_OWNER', status = 'ACTIVE'").bind(item.user_id, item.hotel_id));
+        statements.push(env.DB.prepare("UPDATE hotels SET verification_status = 'VERIFIED', owner_user_id = ? WHERE id = ? AND EXISTS (SELECT 1 FROM verification_requests WHERE id = ? AND status = 'APPROVED')").bind(item.user_id, item.hotel_id, item.id));
+        if (item.user_id) statements.push(env.DB.prepare("INSERT INTO hotel_memberships (user_id, hotel_id, role, status) SELECT ?, ?, 'HOTEL_OWNER', 'ACTIVE' WHERE EXISTS (SELECT 1 FROM verification_requests WHERE id = ? AND status = 'APPROVED') ON CONFLICT(user_id, hotel_id) DO UPDATE SET role = 'HOTEL_OWNER', status = 'ACTIVE'").bind(item.user_id, item.hotel_id, item.id));
       }
-      await env.DB.batch(statements);
+      const results = await env.DB.batch(statements);
+      if (Number(results[0]?.meta?.changes || 0) !== 1) return apiError(409, "VERIFICATION_CONFLICT", "Статус заявки уже изменился. Обновите очередь.");
       return json({ id: item.id, status, audited: true, message: "Решение сохранено в журнале проверки." });
     }
     const item = VERIFICATIONS.find((verification) => verification.id === adminActionMatch[1]); if (!item) return apiError(404, "VERIFICATION_NOT_FOUND", "Заявка не найдена.");

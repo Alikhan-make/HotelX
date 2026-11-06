@@ -60,6 +60,6 @@ run("git", ["push", "--set-upstream", "origin", `HEAD:${credential.branch}`], { 
 const commitSha = run("git", ["rev-parse", "HEAD"], { capture: true });
 const archivePath = resolve(input.archivePath || resolve(projectRoot, "outputs/hotelx-site.tar.gz"));
 await mkdir(dirname(archivePath), { recursive: true });
-run("tar", ["-czf", archivePath, "-C", resolve(projectRoot, "dist"), "."]);
+run("tar", ["-czf", archivePath, ".openai/hosting.json", "dist"]);
 
 process.stdout.write(JSON.stringify({ project_id: input.project_id, commit_sha: commitSha, archive: archivePath }) + "\n");

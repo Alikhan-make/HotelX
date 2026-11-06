@@ -35,6 +35,7 @@ class TestBucket {
 
 const database = new DatabaseSync(":memory:");
 database.exec(await readFile(new URL("../drizzle/0000_hotelx_core.sql", import.meta.url), "utf8"));
+database.exec(await readFile(new URL("../drizzle/0001_nightly_room_inventory.sql", import.meta.url), "utf8"));
 const env = { DB: new TestD1(database), BUCKET: new TestBucket(), HOTELX_PLATFORM_OWNER_EMAIL: "owner@hotelx.demo" };
 
 async function call(path, { method = "GET", context = "personal", body, userId = "owner-user", email = "owner@hotelx.demo", contentType } = {}) {
@@ -57,6 +58,10 @@ if (application.status !== 201) throw new Error("Application was not persisted")
 
 const documentUpload = await call(`/api/verifications/${application.payload.application.id}/documents/identity`, { ...ordinaryOptions, method: "POST", body: new TextEncoder().encode("demo-pdf"), contentType: "application/pdf" });
 if (documentUpload.status !== 201) throw new Error("Protected document upload failed");
+for (const kind of ["business", "ownership"]) {
+  const upload = await call(`/api/verifications/${application.payload.application.id}/documents/${kind}`, { ...ordinaryOptions, method: "POST", body: new TextEncoder().encode("demo-pdf"), contentType: "application/pdf" });
+  if (upload.status !== 201) throw new Error(`Protected ${kind} document upload failed`);
+}
 
 const queue = await call("/api/admin/verifications", { context: "platform" });
 if (!queue.payload.verifications.some((item) => item.id === application.payload.application.id)) throw new Error("Persisted application is missing from admin queue");
@@ -65,6 +70,10 @@ if (protectedDownload.status !== 200 || protectedDownload.payload.byteLength ===
 
 const approval = await call(`/api/admin/verifications/${application.payload.application.id}/approve`, { context: "platform", method: "POST", body: "{}" });
 if (approval.status !== 200 || approval.payload.status !== "APPROVED") throw new Error("Approval transaction failed");
+const terminalReject = await call(`/api/admin/verifications/${application.payload.application.id}/reject`, { context: "platform", method: "POST", body: JSON.stringify({ reviewNote: "Поздний отказ" }) });
+if (terminalReject.status !== 409) throw new Error("Approved verification was not treated as terminal");
+const terminalResubmit = await call("/api/verifications/me/resubmit", { ...ordinaryOptions, method: "POST", body: "{}" });
+if (terminalResubmit.status !== 409) throw new Error("Approved applicant could resubmit a terminal request");
 
 const promoted = await call("/api/me", ordinaryOptions);
 if (!promoted.payload.contexts.some((context) => context.role === "HOTEL_OWNER")) throw new Error("Approved applicant did not receive hotel membership");
@@ -79,6 +88,10 @@ for (let index = 0; index < 4; index += 1) {
 }
 const soldOut = await call("/api/bookings", { ...ordinaryOptions, method: "POST", body: JSON.stringify({ hotelId: "aspan-city", roomId: "aspan-standard", guests: 2, checkIn: "2026-11-07", checkOut: "2026-11-10" }) });
 if (soldOut.status !== 409) throw new Error("Overbooking protection did not reject the sixth booking");
+const overlappingSoldOut = await call("/api/bookings", { ...ordinaryOptions, method: "POST", body: JSON.stringify({ hotelId: "aspan-city", roomId: "aspan-standard", guests: 2, checkIn: "2026-11-08", checkOut: "2026-11-09" }) });
+if (overlappingSoldOut.status !== 409) throw new Error("Overlapping-date overbooking was not rejected");
+const invalidDate = await call("/api/bookings", { ...ordinaryOptions, method: "POST", body: JSON.stringify({ hotelId: "aspan-city", roomId: "aspan-deluxe", guests: 2, checkIn: "2026-02-30", checkOut: "2026-03-02" }) });
+if (invalidDate.status !== 400) throw new Error("Invalid calendar date was normalized instead of rejected");
 
 const price = await call("/api/hotels/aspan-city/recommendations/price-weekend/apply", { context: "business", method: "POST", body: "{}" });
 if (price.status !== 200) throw new Error("Price override failed");
