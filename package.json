@@ -1,0 +1,10 @@
+{
+  "name": "hotelx-ai-platform",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bash scripts/build.sh && node scripts/preview-server.mjs",
+    "build": "bash scripts/build.sh",
+    "test": "node scripts/smoke-test.mjs && node scripts/d1-smoke-test.mjs"
+  }
+}
