@@ -1,5 +1,6 @@
 const STYLES = "__HOTELX_STYLES__";
 const APP_JS = "__HOTELX_APP_JS__";
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#315efb"/><stop offset="1" stop-color="#7657e8"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="24" font-weight="700">HX</text></svg>`;
 
 const HOTELS = [
   {
@@ -254,9 +255,9 @@ async function handleApi(request, url, env) {
   let actor = safeUser(request, url, env);
   if (!actor) return apiError(401, "AUTH_REQUIRED", "Войдите через ChatGPT, чтобы продолжить.");
   if (!env?.DB && env?.HOTELX_LOCAL_PREVIEW !== "1") return apiError(503, "STORAGE_UNAVAILABLE", "Хранилище временно недоступно. Изменения не выполнялись.");
-  actor = await hydrateActorAccess(actor, env);
   const mutationError = protectMutation(request, url);
   if (mutationError) return mutationError;
+  actor = await hydrateActorAccess(actor, env);
   const path = url.pathname;
 
   if (request.method === "GET" && path === "/api/me") {
@@ -334,7 +335,7 @@ async function handleApi(request, url, env) {
       const result = await env.DB.prepare("SELECT b.id, h.name AS hotel, b.check_in, b.check_out, b.room_type, b.status, b.total FROM bookings b JOIN hotels h ON h.id = b.hotel_id WHERE b.guest_user_id = ? ORDER BY b.created_at DESC LIMIT 20").bind(actor.id).all();
       persisted = (result.results || []).map((row) => ({ id: row.id, hotel: row.hotel, checkIn: row.check_in, checkOut: row.check_out, room: row.room_type, status: row.status, total: row.total }));
     }
-    return json({ trips: [...persisted, { id: "HX-248921", hotel: "Nomad Garden Astana", checkIn: "18 дек 2026", checkOut: "21 дек 2026", room: "Comfort Twin", status: "CONFIRMED", total: 144000 }, { id: "HX-231104", hotel: "Burabay Lakeside", checkIn: "14 авг 2026", checkOut: "17 авг 2026", room: "Lake View", status: "COMPLETED", total: 178000 }] });
+    return json({ trips: persisted });
   }
 
   if (request.method === "POST" && path === "/api/applications") {
@@ -502,20 +503,28 @@ async function handleApi(request, url, env) {
 }
 
 const PAGE = `<!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#101828"><meta name="description" content="HotelX — AI-платформа для поиска отелей, бронирования и управления гостиничным бизнесом."><title>HotelX — AI для гостей и отелей</title><link rel="stylesheet" href="/assets/styles.css"></head>
-<body><div id="app"><div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Загружаем ваш контекст…</span></div></div></div><div id="toast-region" class="toast-region" aria-live="polite"></div><div id="modal-root"></div><script src="/assets/app.js" defer></script></body></html>`;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#101828"><meta name="description" content="HotelX — AI-платформа для поиска отелей, бронирования и управления гостиничным бизнесом."><title>HotelX — AI для гостей и отелей</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/styles.css?v=__HOTELX_ASSET_VERSION__"></head>
+<body><div id="app"><div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Загружаем ваш контекст…</span></div></div></div><div id="toast-region" class="toast-region" aria-live="polite"></div><div id="modal-root"></div><script src="/assets/app.js?v=__HOTELX_ASSET_VERSION__" defer></script></body></html>`;
 
 const SECURITY_HEADERS = {
-  "content-security-policy": "default-src 'self'; img-src 'self' https://images.unsplash.com data:; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  "content-security-policy": "default-src 'self'; img-src 'self' https://images.unsplash.com data:; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; object-src 'none'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
   "referrer-policy": "strict-origin-when-cross-origin", "x-content-type-options": "nosniff", "x-frame-options": "DENY", "permissions-policy": "camera=(), microphone=(), geolocation=()"
 };
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/")) return handleApi(request, url, env);
-    if (url.pathname === "/assets/styles.css") return new Response(STYLES, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=3600", ...SECURITY_HEADERS } });
-    if (url.pathname === "/assets/app.js") return new Response(APP_JS, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600", ...SECURITY_HEADERS } });
+    if (url.pathname.startsWith("/api/")) {
+      try {
+        return await handleApi(request, url, env);
+      } catch (error) {
+        console.error("HotelX API request failed", { method: request.method, path: url.pathname, name: error?.name || "Error" });
+        return apiError(500, "INTERNAL_ERROR", "Сервис временно не смог обработать запрос. Повторите попытку.");
+      }
+    }
+    if (url.pathname === "/assets/styles.css") return new Response(STYLES, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=31536000, immutable", ...SECURITY_HEADERS } });
+    if (url.pathname === "/assets/app.js") return new Response(APP_JS, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=31536000, immutable", ...SECURITY_HEADERS } });
+    if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return new Response(FAVICON, { headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=86400", ...SECURITY_HEADERS } });
     if (url.pathname.includes(".")) return new Response("Not found", { status: 404, headers: SECURITY_HEADERS });
     return new Response(PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...SECURITY_HEADERS } });
   }

@@ -103,15 +103,29 @@ async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set('x-hotelx-context', state.context);
   if (options.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
-  const response = await fetch(path, { ...options, headers });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(payload.message || 'Не удалось выполнить запрос.');
-    error.code = payload.error;
-    error.status = response.status;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(path, { ...options, headers, signal: controller.signal });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(payload.message || 'Не удалось выполнить запрос.');
+      error.code = payload.error;
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('Сервер не ответил за 15 секунд. Проверьте соединение и повторите попытку.');
+      timeoutError.code = 'REQUEST_TIMEOUT';
+      timeoutError.status = 504;
+      throw timeoutError;
+    }
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return payload;
 }
 
 function toast(title, text = '', type = '') {
@@ -305,6 +319,11 @@ function errorBlock() {
   return '<div class="card empty"><div class="empty-icon" style="background:var(--red-soft);color:var(--red)">' + icon('lock') + '</div><h3>' + (state.error?.status === 403 ? 'Доступ запрещён' : 'Не удалось загрузить') + '</h3><p>' + esc(state.error?.message || 'Попробуйте ещё раз.') + '</p><button class="btn btn-primary" data-action="retry">Повторить</button></div>';
 }
 
+function bootstrapError() {
+  const title = state.error?.status === 403 ? 'Доступ запрещён' : 'HotelX не удалось запустить';
+  return '<main class="boot boot-error"><section class="card empty"><div class="empty-icon" style="background:var(--red-soft);color:var(--red)">' + icon('info') + '</div><h2>' + title + '</h2><p>' + esc(state.error?.message || 'Проверьте соединение и повторите попытку.') + '</p><button class="btn btn-primary" data-action="retry-init">Повторить загрузку</button></section></main>';
+}
+
 function compareBar() {
   if (!state.path.startsWith('/app') || state.compare.length === 0 || state.path === '/app/compare') return '';
   const hotels = (state.hotels || []).filter((hotel) => state.compare.includes(hotel.id));
@@ -391,8 +410,8 @@ function renderBooking() {
 
 function bookingStep(step, hotel, room) {
   if (step === 1) return '<h2>Детали проживания</h2><p class="muted">Выбранный номер доступен на эти даты.</p><div class="form-grid"><div class="field"><label>Заезд</label><input class="input" value="7 ноября 2026" readonly></div><div class="field"><label>Выезд</label><input class="input" value="10 ноября 2026" readonly></div><div class="field"><label>Гости</label><select class="select" id="booking-guests"><option>2 гостя</option><option>1 гость</option></select></div><div class="field"><label>Номер</label><input class="input" value="' + esc(room.type) + '" readonly></div></div><div class="modal-actions"><button class="btn btn-primary" data-booking-next="2">Продолжить ' + icon('arrow') + '</button></div>';
-  if (step === 2) return '<h2>Информация о госте</h2><p class="muted">Подтверждение придёт на указанный email.</p><div class="form-grid"><div class="field"><label>Имя</label><input class="input" id="guest-first" value="' + esc(state.me?.user.name?.split(' ')[0] || 'Алекс') + '"></div><div class="field"><label>Фамилия</label><input class="input" id="guest-last" placeholder="Фамилия"></div><div class="field"><label>Email</label><input class="input" type="email" id="guest-email" value="' + esc(state.me?.user.email || '') + '"></div><div class="field"><label>Телефон</label><input class="input" id="guest-phone" placeholder="+7 700 000 00 00"></div><div class="field full"><label>Пожелания</label><textarea class="textarea" id="guest-note" placeholder="Например: тихий номер, высокий этаж"></textarea></div></div><div class="modal-actions"><button class="btn" data-booking-next="1">Назад</button><button class="btn btn-primary" data-booking-next="3">К оплате ' + icon('arrow') + '</button></div>';
-  return '<h2>Оплата</h2><div class="ai-card" style="margin-bottom:18px"><div class="row"><span style="color:var(--mint)">' + icon('lock') + '</span><div><strong>Защищённая демонстрационная оплата</strong><div class="text-xs muted">Данные карты не сохраняются. В MVP используется тестовый платёж.</div></div></div></div><div class="form-grid"><div class="field full"><label>Номер карты</label><input class="input" value="4242 4242 4242 4242" inputmode="numeric"></div><div class="field"><label>Срок</label><input class="input" value="12/28"></div><div class="field"><label>CVC</label><input class="input" value="123" inputmode="numeric"></div><div class="field full"><label>Имя на карте</label><input class="input" value="HOTELX DEMO"></div></div><div class="modal-actions"><button class="btn" data-booking-next="2">Назад</button><button class="btn btn-primary" data-action="confirm-booking">Оплатить ' + money(room.price * 3) + '</button></div>';
+  if (step === 2) return '<h2>Информация о госте</h2><p class="muted">Контакты сохранятся только в демонстрационной брони HotelX.</p><div class="form-grid"><div class="field"><label>Имя</label><input class="input" id="guest-first" value="' + esc(state.me?.user.name?.split(' ')[0] || 'Алекс') + '"></div><div class="field"><label>Фамилия</label><input class="input" id="guest-last" placeholder="Фамилия"></div><div class="field"><label>Email</label><input class="input" type="email" id="guest-email" value="' + esc(state.me?.user.email || '') + '"></div><div class="field"><label>Телефон</label><input class="input" id="guest-phone" placeholder="+7 700 000 00 00"></div><div class="field full"><label>Пожелания</label><textarea class="textarea" id="guest-note" placeholder="Например: тихий номер, высокий этаж"></textarea></div></div><div class="modal-actions"><button class="btn" data-booking-next="1">Назад</button><button class="btn btn-primary" data-booking-next="3">К демо-подтверждению ' + icon('arrow') + '</button></div>';
+  return '<h2>Демо-подтверждение</h2><div class="ai-card" style="margin-bottom:18px"><div class="row"><span style="color:var(--mint)">' + icon('lock') + '</span><div><strong>Тестовая форма оплаты</strong><div class="text-xs muted">Данные карты не сохраняются, платёж и списание не выполняются.</div></div></div></div><div class="form-grid"><div class="field full"><label>Номер карты</label><input class="input" value="4242 4242 4242 4242" inputmode="numeric"></div><div class="field"><label>Срок</label><input class="input" value="12/28"></div><div class="field"><label>CVC</label><input class="input" value="123" inputmode="numeric"></div><div class="field full"><label>Имя на карте</label><input class="input" value="HOTELX DEMO"></div></div><div class="modal-actions"><button class="btn" data-booking-next="2">Назад</button><button class="btn btn-primary" data-action="confirm-booking">Подтвердить демо-бронь · ' + money(room.price * 3) + '</button></div>';
 }
 
 function bookingSummary(hotel, room) {
@@ -401,12 +420,12 @@ function bookingSummary(hotel, room) {
 
 function renderConfirmation() {
   const booking = state.latestBooking;
-  return '<section class="confirmation"><div class="success-mark">✓</div><p class="eyebrow" style="color:var(--mint)">Бронирование подтверждено</p><h1 style="font-size:42px;letter-spacing:-.05em">Приятной поездки!</h1><p class="muted">Подтверждение отправлено на ' + esc(state.me?.user.email || 'ваш email') + '.</p><div class="card" style="text-align:left;margin:26px 0"><div class="row-between"><div><span class="text-xs muted">Номер бронирования</span><h2 style="margin:5px 0">' + esc(booking.id) + '</h2></div><span class="badge badge-success">Подтверждено</span></div><div class="divider"></div><div class="form-grid"><div class="detail-item"><span>Отель</span><strong>' + esc(booking.hotel) + '</strong></div><div class="detail-item"><span>Номер</span><strong>' + esc(booking.room) + '</strong></div><div class="detail-item"><span>Даты</span><strong>' + booking.checkIn + ' — ' + booking.checkOut + '</strong></div><div class="detail-item"><span>Итого</span><strong>' + money(booking.total) + '</strong></div></div></div><div class="row" style="justify-content:center"><button class="btn" data-route="/app/explore">На главную</button><button class="btn btn-primary" data-route="/app/trips">В поездки</button></div></section>';
+  return '<section class="confirmation"><div class="success-mark">✓</div><p class="eyebrow" style="color:var(--mint)">Бронирование сохранено</p><h1 style="font-size:42px;letter-spacing:-.05em">Приятной поездки!</h1><p class="muted">Демо-бронь сохранена в HotelX. Списание и email-уведомление в прототипе не выполняются.</p><div class="card" style="text-align:left;margin:26px 0"><div class="row-between"><div><span class="text-xs muted">Номер бронирования</span><h2 style="margin:5px 0">' + esc(booking.id) + '</h2></div><span class="badge badge-success">Подтверждено</span></div><div class="divider"></div><div class="form-grid"><div class="detail-item"><span>Отель</span><strong>' + esc(booking.hotel) + '</strong></div><div class="detail-item"><span>Номер</span><strong>' + esc(booking.room) + '</strong></div><div class="detail-item"><span>Даты</span><strong>' + booking.checkIn + ' — ' + booking.checkOut + '</strong></div><div class="detail-item"><span>Итого</span><strong>' + money(booking.total) + '</strong></div></div></div><div class="row" style="justify-content:center"><button class="btn" data-route="/app/explore">На главную</button><button class="btn btn-primary" data-route="/app/trips">В поездки</button></div></section>';
 }
 
 function renderTrips() {
-  const trips = [...(state.latestBooking ? [state.latestBooking] : []), ...(state.trips || [])];
-  return '<div class="page-head"><div><p class="eyebrow">Мои поездки</p><h1>Планы и история</h1><p>Все бронирования в одном месте.</p></div></div><div class="segmented" style="margin-bottom:20px"><button class="segment active">Предстоящие</button><button class="segment">Прошедшие</button><button class="segment">Отменённые</button></div><div class="stack">' + trips.map((trip) => '<article class="card row-between wrap"><div class="row"><div class="report-icon" style="margin:0">' + icon('calendar') + '</div><div><h3 style="margin-bottom:5px">' + esc(trip.hotel) + '</h3><div class="text-sm muted">' + trip.checkIn + ' — ' + trip.checkOut + ' · ' + esc(trip.room) + '</div></div></div><div class="row wrap"><span class="status ' + trip.status + '">' + (trip.status === 'COMPLETED' ? 'Завершено' : 'Подтверждено') + '</span><strong class="price">' + money(trip.total) + '</strong><button class="btn btn-sm">Детали</button></div></article>').join('') + '</div>';
+  const trips = [...(state.latestBooking ? [state.latestBooking] : []), ...(state.trips || []).filter((trip) => trip.id !== state.latestBooking?.id)];
+  return '<div class="page-head"><div><p class="eyebrow">Мои поездки</p><h1>Планы и история</h1><p>Все бронирования в одном месте.</p></div></div><div class="segmented" style="margin-bottom:20px"><button class="segment active">Предстоящие</button><button class="segment">Прошедшие</button><button class="segment">Отменённые</button></div>' + (trips.length ? '<div class="stack">' + trips.map((trip) => '<article class="card row-between wrap"><div class="row"><div class="report-icon" style="margin:0">' + icon('calendar') + '</div><div><h3 style="margin-bottom:5px">' + esc(trip.hotel) + '</h3><div class="text-sm muted">' + trip.checkIn + ' — ' + trip.checkOut + ' · ' + esc(trip.room) + '</div></div></div><div class="row wrap"><span class="status ' + trip.status + '">' + (trip.status === 'COMPLETED' ? 'Завершено' : 'Подтверждено') + '</span><strong class="price">' + money(trip.total) + '</strong><button class="btn btn-sm">Детали</button></div></article>').join('') + '</div>' : '<div class="card empty"><div class="empty-icon">' + icon('calendar') + '</div><h3>Поездок пока нет</h3><p>Здесь появятся ваши подтверждённые бронирования.</p><button class="btn btn-primary" data-route="/app/explore">Найти отель</button></div>');
 }
 
 function renderFavorites() {
@@ -415,7 +434,7 @@ function renderFavorites() {
 }
 
 function renderGuestAi() {
-  return '<div class="page-head"><div><p class="eyebrow">AI TRAVEL ASSISTANT</p><h1>Помощник путешественника</h1><p>Отвечает только по публичным данным отелей, ценам и доступности.</p></div><span class="badge badge-success">● Онлайн</span></div><div class="prompt-chips"><button class="prompt-chip" data-guest-prompt="Какой отель лучше выбрать?">Какой отель лучше?</button><button class="prompt-chip" data-guest-prompt="Найди отель рядом с центром до 50 000 ₸">Рядом с центром</button><button class="prompt-chip" data-guest-prompt="Где есть бассейн и завтрак?">Бассейн и завтрак</button></div><div class="chat-layout"><div class="messages">' + state.aiMessages.map((message) => '<div class="message ' + message.from + '">' + esc(message.text) + '</div>').join('') + '</div><form class="chat-compose" id="guest-chat-form"><input id="guest-chat-input" placeholder="Спросите о выборе отеля…"><button class="btn btn-ai" type="submit">' + icon('arrow') + '<span>Отправить</span></button></form></div>';
+  return '<div class="page-head"><div><p class="eyebrow">AI TRAVEL ASSISTANT</p><h1>Помощник путешественника</h1><p>Прототип отвечает только по демонстрационному публичному каталогу отелей.</p></div><span class="badge badge-warning">Демо AI</span></div><div class="prompt-chips"><button class="prompt-chip" data-guest-prompt="Какой отель лучше выбрать?">Какой отель лучше?</button><button class="prompt-chip" data-guest-prompt="Найди отель рядом с центром до 50 000 ₸">Рядом с центром</button><button class="prompt-chip" data-guest-prompt="Где есть бассейн и завтрак?">Бассейн и завтрак</button></div><div class="chat-layout"><div class="messages">' + state.aiMessages.map((message) => '<div class="message ' + message.from + '">' + esc(message.text) + '</div>').join('') + '</div><form class="chat-compose" id="guest-chat-form"><input id="guest-chat-input" placeholder="Спросите о выборе отеля…"><button class="btn btn-ai" type="submit">' + icon('arrow') + '<span>Отправить</span></button></form></div>';
 }
 
 function renderProfile() {
@@ -457,7 +476,7 @@ function renderDashboard() {
   const data = state.dashboard;
   if (!data) return loadingBlock();
   const k = data.kpis;
-  return '<div class="page-head"><div><p class="eyebrow">6 ноября 2026 · Aspan City Hotel</p><h1>Добрый день, ' + esc(state.me?.user.name?.split(' ')[0] || 'управляющий') + '</h1><p>Ключевые показатели, прогноз и рекомендации на сегодня.</p></div><div class="row"><button class="btn">' + icon('calendar') + ' 1–30 ноября</button><button class="btn btn-primary" data-route="/hotel/reports">' + icon('download') + ' Отчёт</button></div></div><div class="kpi-grid">' +
+  return '<div class="page-head"><div><p class="eyebrow">6 ноября 2026 · Aspan City Hotel</p><h1>Добрый день, ' + esc(state.me?.user.name?.split(' ')[0] || 'управляющий') + '</h1><p>Ключевые показатели, прогноз и рекомендации на сегодня.</p></div><div class="row wrap"><span class="badge badge-warning">Демо-данные</span><button class="btn">' + icon('calendar') + ' 1–30 ноября</button><button class="btn btn-primary" data-route="/hotel/reports">' + icon('download') + ' Отчёт</button></div></div><div class="kpi-grid">' +
     kpiCard('Загрузка', k.occupancy + '%', '6.2%', 'bed') + kpiCard('Выручка', money(k.revenue), '12.4%', 'chart') + kpiCard('ADR', money(k.adr), '4.8%', 'tag') + kpiCard('RevPAR', money(k.revpar), '9.1%', 'forecast') + '</div>' +
     '<div class="dashboard-grid"><section class="card chart-card"><div class="row-between"><div><h2 style="margin-bottom:5px">Загрузка на 12 недель</h2><p class="muted text-sm">Факт и прогноз по доступным номерам</p></div><span class="badge badge-success">Прогноз ' + k.forecast + '%</span></div><div class="chart">' + data.occupancySeries.map((value, index) => '<div class="bar" style="height:' + value + '%" title="' + value + '%"><span>' + (index + 1) + '</span></div>').join('') + '</div></section>' +
     '<aside class="card recommendation"><div class="recommendation-top"><div class="ai-label">✦ AI-вывод сегодня</div><h2 style="margin-bottom:7px">' + esc(data.insight.title) + '</h2><p class="text-sm muted" style="margin:0;line-height:1.55">' + esc(data.insight.text) + '</p></div><div class="recommendation-body">' + recommendationBody(data.recommendation) + '</div></aside></div>' +
@@ -470,7 +489,7 @@ function recommendationBody(rec) {
 }
 
 function renderHotelAi() {
-  return '<div class="page-head"><div><p class="eyebrow">HOTEL AI · PRIVATE DATA</p><h1>AI-помощник отеля</h1><p>Анализирует только данные Aspan City Hotel в рамках вашего доступа.</p></div><span class="badge badge-success">Данные обновлены 2 мин назад</span></div><div class="prompt-chips"><button class="prompt-chip" data-hotel-prompt="Какая ожидаемая загрузка на следующую неделю?">Загрузка на неделю</button><button class="prompt-chip" data-hotel-prompt="Нужно ли поднять цены?">Поднять цены?</button><button class="prompt-chip" data-hotel-prompt="Какие номера продаются хуже всего?">Слабые категории</button><button class="prompt-chip" data-hotel-prompt="Почему вырос спрос?">Причина роста</button></div><div class="chat-layout"><div class="messages">' + state.hotelAiMessages.map((message) => '<div class="message ' + message.from + '">' + esc(message.text) + '</div>').join('') + '</div><form class="chat-compose" id="hotel-chat-form"><input id="hotel-chat-input" placeholder="Спросите о загрузке, выручке или ценах…"><button class="btn btn-ai" type="submit">' + icon('arrow') + '<span>Отправить</span></button></form></div>';
+  return '<div class="page-head"><div><p class="eyebrow">HOTEL AI · PRIVATE DATA</p><h1>AI-помощник отеля</h1><p>Прототип анализирует демонстрационные данные Aspan City Hotel в рамках вашего доступа.</p></div><span class="badge badge-warning">Демо AI</span></div><div class="prompt-chips"><button class="prompt-chip" data-hotel-prompt="Какая ожидаемая загрузка на следующую неделю?">Загрузка на неделю</button><button class="prompt-chip" data-hotel-prompt="Нужно ли поднять цены?">Поднять цены?</button><button class="prompt-chip" data-hotel-prompt="Какие номера продаются хуже всего?">Слабые категории</button><button class="prompt-chip" data-hotel-prompt="Почему вырос спрос?">Причина роста</button></div><div class="chat-layout"><div class="messages">' + state.hotelAiMessages.map((message) => '<div class="message ' + message.from + '">' + esc(message.text) + '</div>').join('') + '</div><form class="chat-compose" id="hotel-chat-form"><input id="hotel-chat-input" placeholder="Спросите о загрузке, выручке или ценах…"><button class="btn btn-ai" type="submit">' + icon('arrow') + '<span>Отправить</span></button></form></div>';
 }
 
 function renderAnalytics() {
@@ -530,8 +549,8 @@ function renderStaff() {
 }
 
 function renderIntegrations() {
-  const items = [['Cloudbeds','PMS · синхронизация номеров','Подключено'],['Booking Partner','Канал продаж · бронирования','Подключено'],['Stripe Test','Платежи · демонстрационный режим','Тест'],['Google Hotel Ads','Маркетинг · цены и доступность','Не подключено'],['1C Hotel','Финансы · экспорт выручки','Не подключено'],['Webhooks','События бронирований и цен','Настроить']];
-  return '<div class="page-head"><div><p class="eyebrow">ECOSYSTEM</p><h1>Интеграции</h1><p>Подключения доступны только владельцу с MANAGE_INTEGRATIONS.</p></div></div><div class="integration-grid">' + items.map((item, index) => '<article class="card card-hover"><div class="row-between"><div class="integration-icon">' + icon(index === 2 ? 'card' : 'plug') + '</div><span class="badge ' + (item[2] === 'Подключено' ? 'badge-success' : item[2] === 'Тест' ? 'badge-warning' : '') + '">' + item[2] + '</span></div><h3>' + item[0] + '</h3><p class="text-sm muted">' + item[1] + '</p><button class="btn btn-sm" data-action="connect-integration">' + (item[2] === 'Подключено' ? 'Настроить' : 'Подключить') + '</button></article>').join('') + '</div>';
+  const items = [['Cloudbeds','PMS · макет синхронизации номеров','Демо'],['Booking Partner','Канал продаж · макет бронирований','Демо'],['Stripe Test','Платежи · демонстрационный режим','Тест'],['Google Hotel Ads','Маркетинг · цены и доступность','Не подключено'],['1C Hotel','Финансы · экспорт выручки','Не подключено'],['Webhooks','События бронирований и цен','Не подключено']];
+  return '<div class="page-head"><div><p class="eyebrow">ECOSYSTEM</p><h1>Интеграции</h1><p>Это прототип интерфейса; внешние сервисы пока не подключены.</p></div></div><div class="integration-grid">' + items.map((item, index) => '<article class="card card-hover"><div class="row-between"><div class="integration-icon">' + icon(index === 2 ? 'card' : 'plug') + '</div><span class="badge ' + (item[2] === 'Демо' || item[2] === 'Тест' ? 'badge-warning' : '') + '">' + item[2] + '</span></div><h3>' + item[0] + '</h3><p class="text-sm muted">' + item[1] + '</p><button class="btn btn-sm" data-action="connect-integration">' + (item[2] === 'Не подключено' ? 'Подробнее' : 'Открыть макет') + '</button></article>').join('') + '</div>';
 }
 
 function renderHotelSettings() {
@@ -581,6 +600,7 @@ function render() {
   const app = $('#app');
   if (!state.me) {
     if (state.error?.status === 401 || state.path === '/login') app.innerHTML = renderLogin();
+    else if (state.error) app.innerHTML = bootstrapError();
     else app.innerHTML = '<div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Проверяем защищённый доступ…</span></div></div>';
     bindForms();
     return;
@@ -801,8 +821,8 @@ async function confirmBooking(button) {
     persistLocal('latest-booking', result.booking);
     persistLocal('booking-draft', state.bookingDraft);
     render();
-    toast('Бронирование подтверждено', result.booking.id, 'success');
-  } catch (error) { toast('Оплата не выполнена', error.message, 'error'); button.disabled = false; }
+    toast('Демо-бронь сохранена', result.booking.id, 'success');
+  } catch (error) { toast('Бронь не создана', error.message, 'error'); button.disabled = false; }
 }
 
 function openApplyRecommendation() {
@@ -900,6 +920,7 @@ document.addEventListener('click', async (event) => {
   else if (name === 'open-sidebar') document.body.classList.add('sidebar-open');
   else if (name === 'close-modal') { if (!event.target.closest('[data-modal-panel]') || event.target.closest('button')) closeModal(); }
   else if (name === 'retry') hydrateRoute().catch(handleLoadError);
+  else if (name === 'retry-init') { state.error = null; render(); init(); }
   else if (name === 'classic-search') { state.searchResults = state.hotels; state.parsedSearch = null; navigate('/app/search'); }
   else if (name === 'clear-compare') { state.compare = []; state.compareResult = null; persistLocal('compare', []); if (state.path === '/app/compare') navigate('/app/search'); else render(); }
   else if (name === 'reset-filters') { state.filters = { budget: 0, amenities: [] }; state.searchResults = state.hotels; state.parsedSearch = null; render(); }
@@ -910,8 +931,8 @@ document.addEventListener('click', async (event) => {
   else if (name === 'apply-recommendation') openApplyRecommendation();
   else if (name === 'confirm-recommendation') await confirmRecommendation(action);
   else if (name === 'save-settings') toast('Изменения сохранены', 'Настройки обновлены.', 'success');
-  else if (name === 'generate-report') toast('Отчёт сформирован', 'Демонстрационный PDF готов к скачиванию.', 'success');
-  else if (name === 'connect-integration') toast('Интеграция открыта', 'В production здесь запускается защищённый OAuth-процесс.');
+  else if (name === 'generate-report') toast('Макет отчёта сформирован', 'Экспорт PDF в прототипе ещё не подключён.', 'success');
+  else if (name === 'connect-integration') toast('Демонстрационный экран', 'Реальное OAuth-подключение внешнего сервиса ещё не настроено.');
   else if (name === 'view-document') await downloadVerificationDocument(action);
   else if (name === 'resubmit-verification') {
     try { await api('/api/verifications/me/resubmit', { method: 'POST', body: '{}' }); state.myVerification = await api('/api/verifications/me'); render(); toast('Заявка отправлена повторно', 'Статус изменён на PENDING.', 'success'); }
@@ -967,6 +988,7 @@ window.addEventListener('popstate', () => {
 });
 
 async function init() {
+  state.error = null;
   try {
     const me = await api('/api/me');
     state.me = me;
