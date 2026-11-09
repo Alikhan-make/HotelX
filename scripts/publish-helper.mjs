@@ -60,7 +60,6 @@ run("git", ["push", "--set-upstream", "origin", `HEAD:${credential.branch}`], { 
 const commitSha = run("git", ["rev-parse", "HEAD"], { capture: true });
 const archivePath = resolve(input.archivePath || resolve(projectRoot, "outputs/hotelx-site.tar.gz"));
 await mkdir(dirname(archivePath), { recursive: true });
-// Hosted Sites discovers and applies pending D1 migrations from the archive's top-level drizzle directory.
-run("tar", ["-czf", archivePath, ".openai/hosting.json", "dist", "drizzle"]);
+run("tar", ["-czf", archivePath, ".openai/hosting.json", "dist"]);
 
 process.stdout.write(JSON.stringify({ project_id: input.project_id, commit_sha: commitSha, archive: archivePath }) + "\n");

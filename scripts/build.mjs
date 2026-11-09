@@ -19,5 +19,5 @@ if (bundled.includes("__HOTELX_")) throw new Error("Unresolved HotelX build plac
 await rm(distRoot, { recursive: true, force: true });
 await mkdir(resolve(distRoot, "server"), { recursive: true }); await mkdir(resolve(distRoot, ".openai"), { recursive: true });
 await writeFile(resolve(distRoot, "server/index.js"), bundled); await writeFile(resolve(distRoot, ".openai/hosting.json"), manifest);
-await cp(resolve(projectRoot, "drizzle"), resolve(distRoot, "drizzle"), { recursive: true });
+await cp(resolve(projectRoot, "drizzle"), resolve(distRoot, ".openai", "drizzle"), { recursive: true });
 console.log(`Built ${distRoot}`);
