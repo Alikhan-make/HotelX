@@ -1,5 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 const ICONS = {
   home: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5M9 20v-6h6v6"/>',
@@ -76,9 +77,10 @@ const state = {
   contextMenu: false,
   intent: new URLSearchParams(location.search).get('intent') === 'manager' ? 'manager' : 'guest',
   hotels: null,
+  searchPool: null,
   searchResults: null,
   parsedSearch: null,
-  filters: { budget: 0, amenities: [] },
+  filters: { city: '', budget: 0, amenities: [] },
   compare: [],
   favorites: ['aspan-city'],
   dashboard: null,
@@ -98,6 +100,22 @@ const state = {
   aiMessages: [{ from: 'ai', text: 'Здравствуйте! Я AI-помощник HotelX. Расскажите, какой отель вы ищете — учту бюджет, локацию и ваши предпочтения.' }],
   hotelAiMessages: [{ from: 'ai', text: 'Данные Aspan City Hotel обновлены. На выходные спрос растёт быстрее прогноза. Могу объяснить причины или предложить действие.' }]
 };
+
+let lastAnimatedPath = null;
+
+function viewEnterClass() {
+  if (state.loading || lastAnimatedPath === state.path) return '';
+  lastAnimatedPath = state.path;
+  return ' view-enter';
+}
+
+function hotelCities() {
+  return [...new Set((state.hotels || []).map((hotel) => hotel.city).filter(Boolean))].sort((left, right) => left.localeCompare(right, 'ru'));
+}
+
+function cityOptions(selected = '') {
+  return [''].concat(hotelCities()).map((city) => '<option value="' + esc(city) + '" ' + (city === selected ? 'selected' : '') + '>' + (city || 'Весь Казахстан') + '</option>').join('');
+}
 
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
@@ -189,7 +207,7 @@ function navigate(path) {
   state.path = target.pathname;
   state.contextMenu = false;
   document.body.classList.remove('sidebar-open');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: reducedMotionQuery.matches ? 'auto' : 'smooth' });
   hydrateRoute().catch(handleLoadError);
 }
 
@@ -250,9 +268,9 @@ function guestNavLink(path, label, iconName, activePrefix = path) {
   return '<a href="' + path + '" data-route="' + path + '" class="' + (active ? 'active' : '') + '">' + icon(iconName) + '<span>' + label + '</span></a>';
 }
 
-function guestShell(content) {
+function guestShell(content, viewClass = '') {
   const name = state.me?.user.name || 'Гость';
-  return '<div class="guest-shell"><header class="guest-header"><div class="guest-header-inner">' + brand() + '<nav class="guest-nav" aria-label="Навигация гостя">' +
+  return '<div class="guest-shell' + viewClass + '"><header class="guest-header"><div class="guest-header-inner">' + brand() + '<nav class="guest-nav" aria-label="Навигация гостя">' +
     guestNavLink('/app/explore', 'Поиск', 'search', '/app/explore') + guestNavLink('/app/trips', 'Поездки', 'calendar') + guestNavLink('/app/favorites', 'Избранное', 'heart') + guestNavLink('/app/ai', 'AI-помощник', 'spark') +
     '</nav><div class="guest-actions"><button class="btn btn-icon btn-ghost" aria-label="Уведомления" data-action="notifications">' + icon('bell') + '</button><button class="btn btn-ghost" data-action="toggle-context"><span class="avatar">' + initials(name) + '</span></button></div></div></header>' +
     contextPopover(true) + '<main class="guest-main">' + content + '</main><nav class="guest-bottom-nav" aria-label="Мобильная навигация">' +
@@ -279,10 +297,10 @@ function sideNav(groups) {
   }).join('') + '</nav></div>').join('');
 }
 
-function workspaceShell(content, admin = false) {
+function workspaceShell(content, admin = false, viewClass = '') {
   const ctx = currentContext();
   const groups = admin ? ADMIN_NAV : HOTEL_NAV;
-  return '<div class="app-shell"><aside class="sidebar">' + brand(true) + '<button class="side-context" data-action="toggle-context"><span class="avatar">' + initials(ctx?.label) + '</span><span class="grow"><strong>' + esc(ctx?.label || '') + '</strong><span>' + esc(ctx?.subtitle || '') + '</span></span>' + icon('chevron') + '</button>' + sideNav(groups) +
+  return '<div class="app-shell' + viewClass + '"><aside class="sidebar">' + brand(true) + '<button class="side-context" data-action="toggle-context"><span class="avatar">' + initials(ctx?.label) + '</span><span class="grow"><strong>' + esc(ctx?.label || '') + '</strong><span>' + esc(ctx?.subtitle || '') + '</span></span>' + icon('chevron') + '</button>' + sideNav(groups) +
     '<div class="side-footer"><div class="side-user"><span class="avatar">' + initials(state.me?.user.name) + '</span><span class="grow"><strong>' + esc(state.me?.user.name || '') + '</strong><span>' + esc(state.me?.user.email || '') + '</span></span></div></div></aside>' + contextPopover(false) +
     '<div class="workspace"><header class="workspace-topbar"><button class="btn btn-icon btn-ghost mobile-menu" data-action="open-sidebar" aria-label="Открыть меню">' + icon('menu') + '</button><h2>' + esc(pageTitle()) + '</h2><div class="top-actions"><button class="btn btn-icon btn-ghost" data-action="notifications" aria-label="Уведомления">' + icon('bell') + '</button><button class="btn btn-sm" data-action="toggle-context">' + icon(admin ? 'shield' : 'building') + '<span class="nowrap">' + esc(ctx?.label || '') + '</span></button></div></header><main class="workspace-main">' + content + '</main></div></div>';
 }
@@ -332,11 +350,11 @@ function compareBar() {
 
 function hotelCard(hotel) {
   const favorite = state.favorites.includes(hotel.id);
-  return '<article class="hotel-card"><div class="hotel-image"><img src="' + hotel.image + '" alt="' + esc(hotel.name) + '" loading="lazy"><button class="favorite-btn ' + (favorite ? 'active' : '') + '" data-favorite="' + hotel.id + '" aria-label="В избранное">' + icon('heart') + '</button><span class="match-pill">✦ AI Match ' + hotel.match + '%</span></div><div class="hotel-body"><h3>' + esc(hotel.name) + '</h3><div class="hotel-location">' + esc(hotel.location) + '</div><div class="hotel-meta"><span class="rating">' + hotel.rating + ' <span class="muted">(' + hotel.reviews + ')</span></span><div class="hotel-price"><strong class="price">' + money(hotel.price) + '</strong><span>за ночь</span></div></div><div class="row" style="margin-top:15px"><button class="btn btn-sm grow" data-compare="' + hotel.id + '">' + (state.compare.includes(hotel.id) ? '✓ В сравнении' : 'Сравнить') + '</button><button class="btn btn-sm btn-primary grow" data-route="/app/hotel/' + hotel.id + '">Смотреть</button></div></div></article>';
+  return '<article class="hotel-card"><div class="hotel-image"><img src="' + hotel.image + '" alt="' + esc(hotel.name) + '" loading="lazy"><button class="favorite-btn ' + (favorite ? 'active' : '') + '" data-favorite="' + hotel.id + '" aria-label="В избранное">' + icon('heart') + '</button><span class="match-pill">✦ AI Match ' + hotel.match + '%</span></div><div class="hotel-body"><div class="row-between" style="align-items:flex-start"><h3>' + esc(hotel.name) + '</h3><span class="badge badge-brand">' + esc(hotel.city) + '</span></div><div class="hotel-location">' + esc(hotel.location) + '</div><div class="hotel-meta"><span class="rating">' + hotel.rating + ' <span class="muted">(' + hotel.reviews + ')</span></span><div class="hotel-price"><strong class="price">' + money(hotel.price) + '</strong><span>за ночь</span></div></div><div class="row" style="margin-top:15px"><button class="btn btn-sm grow" data-compare="' + hotel.id + '">' + (state.compare.includes(hotel.id) ? '✓ В сравнении' : 'Сравнить') + '</button><button class="btn btn-sm btn-primary grow" data-route="/app/hotel/' + hotel.id + '">Смотреть</button></div></div></article>';
 }
 
-function renderLanding() {
-  return '<div class="landing"><nav class="landing-nav">' + brand() + '<div class="landing-links"><a href="#how">Как работает</a><button class="btn-ghost" data-route="/app/explore">Для путешественников</button><button class="btn-ghost" data-route="/hotel/dashboard">Для отелей</button></div><div class="row"><button class="btn btn-ghost" data-route="/login">Войти</button><button class="btn btn-primary" data-route="/app/explore">Открыть HotelX</button></div></nav>' +
+function renderLanding(viewClass = '') {
+  return '<div class="landing' + viewClass + '"><nav class="landing-nav">' + brand() + '<div class="landing-links"><a href="#how">Как работает</a><button class="btn-ghost" data-route="/app/explore">Для путешественников</button><button class="btn-ghost" data-route="/hotel/dashboard">Для отелей</button></div><div class="row"><button class="btn btn-ghost" data-route="/login">Войти</button><button class="btn btn-primary" data-route="/app/explore">Открыть HotelX</button></div></nav>' +
     '<main><section class="landing-hero"><div class="landing-copy"><p class="eyebrow">Одна AI-платформа · две стороны рынка</p><h1>Нужный отель. <span>Верное решение.</span></h1><p>HotelX помогает гостям находить идеальное размещение, а отелям — прогнозировать спрос, управлять ценой и увеличивать выручку.</p><div class="hero-actions"><button class="btn btn-primary" data-route="/app/explore">' + icon('search') + ' Найти отель</button><button class="btn" data-route="/register?intent=manager">' + icon('building') + ' Подключить отель</button></div><div class="trust-row"><span>Объяснимый AI Match</span><span>Защищённые роли</span><span>Цены в тенге</span></div></div>' +
     '<div class="hero-visual" aria-label="Современный отель"><div class="hero-match"><div class="match-ring"><span>94%</span></div><div><div class="ai-label" style="margin-bottom:4px">✦ Лучшее совпадение</div><h3>Aspan City Hotel</h3><p>Рядом с центром · завтрак включён · в рамках бюджета</p></div><button class="btn btn-sm btn-primary" data-route="/app/hotel/aspan-city">Подробнее</button></div></div></section>' +
     '<section class="value-strip" id="how"><div class="value-grid"><div class="value-item"><span class="value-number">01</span><div><h3>Спрос обычными словами</h3><p>Напишите пожелания — AI превратит их в даты, бюджет, локацию и фильтры.</p></div></div><div class="value-item"><span class="value-number">02</span><div><h3>Выбор с объяснением</h3><p>Сравните варианты и поймите, почему HotelX рекомендует именно этот отель.</p></div></div><div class="value-item"><span class="value-number">03</span><div><h3>Управление на данных</h3><p>Отель получает прогноз спроса и проверяемые рекомендации по цене.</p></div></div></div></section></main></div>';
@@ -344,33 +362,35 @@ function renderLanding() {
 
 function renderExplore() {
   const hotels = state.hotels || [];
-  return '<section class="explore-hero"><div class="explore-content"><p class="eyebrow" style="color:#bfcaff">AI SEARCH · ASTANA</p><h1>Найдите идеальное место с AI.</h1><p>Опишите поездку как другу — HotelX поймёт контекст и покажет действительно подходящие варианты.</p><form class="ai-search" id="ai-search-form"><span class="ai-orb">✦</span><input id="ai-search-input" aria-label="AI-запрос" value="Найди хороший отель в Астане до 50 000 ₸ рядом с центром" placeholder="Например: отель с бассейном до 50 000 ₸"><button class="btn btn-ai" type="submit">Найти с AI ' + icon('arrow') + '</button></form></div></section>' +
-    '<div class="classic-search"><div class="search-cell"><label>Куда</label><strong>Астана, Казахстан</strong></div><div class="search-cell"><label>Заезд</label><strong>7 ноя 2026</strong></div><div class="search-cell"><label>Выезд</label><strong>10 ноя 2026</strong></div><div class="search-cell"><label>Гости</label><strong>2 гостя · 1 номер</strong></div><button class="btn btn-primary" data-action="classic-search">Поиск</button></div>' +
-    '<section class="section"><div class="section-head"><div><h2>Лучшие совпадения в Астане</h2><p>AI оценил цену, расположение, удобства и отзывы гостей.</p></div><button class="link" data-route="/app/search">Все варианты →</button></div><div class="hotel-grid">' + hotels.slice(0, 3).map(hotelCard).join('') + '</div></section>' +
+  return '<section class="explore-hero"><div class="explore-content"><p class="eyebrow" style="color:#bfcaff">AI SEARCH · KAZAKHSTAN</p><h1>Откройте Казахстан с AI.</h1><p>Опишите город, бюджет и пожелания — HotelX подберёт варианты по всей стране.</p><form class="ai-search" id="ai-search-form"><span class="ai-orb">✦</span><input id="ai-search-input" aria-label="AI-запрос" value="Найди отель в Алматы до 60 000 ₸ с завтраком" placeholder="Например: отель в Актау с бассейном до 60 000 ₸"><button class="btn btn-ai" type="submit">Найти с AI ' + icon('arrow') + '</button></form></div></section>' +
+    '<div class="classic-search"><div class="search-cell"><label for="classic-city">Куда</label><select id="classic-city" aria-label="Город">' + cityOptions(state.filters.city) + '</select></div><div class="search-cell"><label>Заезд</label><strong>7 ноя 2026</strong></div><div class="search-cell"><label>Выезд</label><strong>10 ноя 2026</strong></div><div class="search-cell"><label>Гости</label><strong>2 гостя · 1 номер</strong></div><button class="btn btn-primary" data-action="classic-search">Поиск</button></div>' +
+    '<div class="city-strip" aria-label="Популярные города"><button class="city-chip ' + (!state.filters.city ? 'active' : '') + '" data-city="">Весь Казахстан</button>' + hotelCities().map((city) => '<button class="city-chip ' + (state.filters.city === city ? 'active' : '') + '" data-city="' + esc(city) + '">' + esc(city) + '</button>').join('') + '</div>' +
+    '<section class="section"><div class="section-head"><div><div class="row wrap" style="margin-bottom:8px"><span class="badge badge-warning">Демо-каталог</span><span class="text-sm muted">' + hotels.length + ' отелей · ' + hotelCities().length + ' городов</span></div><h2>Популярные отели Казахстана</h2><p>Сравните цену, расположение, удобства и отзывы гостей.</p></div><button class="link" data-action="all-hotels">Весь каталог →</button></div><div class="hotel-grid">' + hotels.slice(0, 6).map(hotelCard).join('') + '</div></section>' +
     '<section class="section ai-card"><div class="row-between wrap"><div style="max-width:700px"><div class="ai-label">✦ Как работает AI Match</div><h2 style="margin-bottom:8px">Не просто процент — понятное объяснение</h2><p class="muted" style="margin:0;line-height:1.6">HotelX сопоставляет ваш бюджет, расстояние, удобства и стиль поездки. Откройте карточку, чтобы увидеть плюсы и возможные компромиссы.</p></div><button class="btn btn-ai" data-route="/app/hotel/aspan-city">Посмотреть анализ</button></div></section>';
 }
 
 function renderSearchResults() {
   const hotels = state.searchResults || state.hotels || [];
   const parsed = state.parsedSearch;
-  const parsedHtml = parsed ? '<div class="ai-card" style="margin-bottom:18px;padding:16px 18px"><div class="row wrap"><span class="ai-label" style="margin:0">✦ AI понял запрос</span><span class="badge badge-brand">Астана</span><span class="badge badge-brand">3 ночи</span><span class="badge badge-brand">до ' + money(parsed.budget) + '</span><span class="badge badge-brand">рядом с центром</span></div></div>' : '';
-  return '<div class="page-head"><div><p class="eyebrow">Астана · 7–10 ноября · 2 гостя</p><h1>Подходящие отели</h1><p>Найдено ' + hotels.length + ' варианта · сначала лучшее AI-совпадение</p></div><div class="row"><button class="btn" data-action="open-filters">' + icon('filter') + ' Фильтры</button><select class="select" id="sort-hotels" style="width:auto"><option value="match">Сначала AI Match</option><option value="price">Сначала дешевле</option><option value="rating">По рейтингу</option></select></div></div>' + parsedHtml +
-    '<div class="results-layout"><aside class="card filters"><div class="row-between"><h3 style="margin:0">Фильтры</h3><button class="link" data-action="reset-filters">Сбросить</button></div><div class="filter-group"><h4>Цена за ночь</h4><label class="check"><input type="radio" name="budget" value="0" ' + (!state.filters.budget ? 'checked' : '') + '> Любая цена</label><label class="check"><input type="radio" name="budget" value="40000" ' + (state.filters.budget === 40000 ? 'checked' : '') + '> До 40 000 ₸</label><label class="check"><input type="radio" name="budget" value="50000" ' + (state.filters.budget === 50000 ? 'checked' : '') + '> До 50 000 ₸</label><label class="check"><input type="radio" name="budget" value="60000" ' + (state.filters.budget === 60000 ? 'checked' : '') + '> До 60 000 ₸</label></div><div class="filter-group"><h4>Рейтинг</h4><label class="check"><input type="checkbox" checked> 4.5 и выше</label><label class="check"><input type="checkbox"> 4.7 и выше</label></div><div class="filter-group"><h4>Удобства</h4>' + ['Завтрак','Парковка','Бассейн','Фитнес-зал'].map((item) => '<label class="check"><input type="checkbox" data-amenity="' + item + '" ' + (state.filters.amenities.includes(item) ? 'checked' : '') + '> ' + item + '</label>').join('') + '</div></aside><div class="result-list">' + (hotels.length ? hotels.map(renderResultCard).join('') : '<div class="card empty"><div class="empty-icon">' + icon('search') + '</div><h3>Ничего не найдено</h3><p>Попробуйте увеличить бюджет или убрать часть фильтров.</p><button class="btn btn-primary" data-action="reset-filters">Сбросить фильтры</button></div>') + '</div></div>';
+  const scope = state.filters.city || (parsed?.city !== 'Казахстан' ? parsed?.city : '') || 'Казахстан';
+  const parsedHtml = parsed ? '<div class="ai-card" style="margin-bottom:18px;padding:16px 18px"><div class="row wrap"><span class="ai-label" style="margin:0">✦ AI понял запрос</span><span class="badge badge-brand">' + esc(parsed.city) + '</span><span class="badge badge-brand">3 ночи</span>' + (parsed.budget ? '<span class="badge badge-brand">до ' + money(parsed.budget) + '</span>' : '') + (parsed.amenities || []).map((item) => '<span class="badge badge-brand">' + esc(item) + '</span>').join('') + '<span class="badge badge-warning">Демо-каталог</span></div></div>' : '';
+  return '<div class="page-head"><div><p class="eyebrow">' + esc(scope) + ' · 7–10 ноября · 2 гостя</p><h1>Подходящие отели</h1><p>Найдено ' + hotels.length + ' · сначала лучшее AI-совпадение</p></div><div class="row"><button class="btn" data-action="open-filters">' + icon('filter') + ' Фильтры</button><select class="select" id="sort-hotels" style="width:auto"><option value="match">Сначала AI Match</option><option value="price">Сначала дешевле</option><option value="rating">По рейтингу</option></select></div></div>' + parsedHtml +
+    '<div class="results-layout"><aside class="card filters"><div class="row-between"><h3 style="margin:0">Фильтры</h3><button class="link" data-action="reset-filters">Сбросить</button></div><div class="filter-group"><h4>Город</h4><select class="select" id="city-filter">' + cityOptions(state.filters.city) + '</select></div><div class="filter-group"><h4>Цена за ночь</h4><label class="check"><input type="radio" name="budget" value="0" ' + (!state.filters.budget ? 'checked' : '') + '> Любая цена</label><label class="check"><input type="radio" name="budget" value="40000" ' + (state.filters.budget === 40000 ? 'checked' : '') + '> До 40 000 ₸</label><label class="check"><input type="radio" name="budget" value="50000" ' + (state.filters.budget === 50000 ? 'checked' : '') + '> До 50 000 ₸</label><label class="check"><input type="radio" name="budget" value="60000" ' + (state.filters.budget === 60000 ? 'checked' : '') + '> До 60 000 ₸</label><label class="check"><input type="radio" name="budget" value="80000" ' + (state.filters.budget === 80000 ? 'checked' : '') + '> До 80 000 ₸</label></div><div class="filter-group"><h4>Удобства</h4>' + ['Завтрак','Парковка','Бассейн','Спа','Фитнес-зал'].map((item) => '<label class="check"><input type="checkbox" data-amenity="' + item + '" ' + (state.filters.amenities.includes(item) ? 'checked' : '') + '> ' + item + '</label>').join('') + '</div></aside><div class="result-list">' + (hotels.length ? hotels.map(renderResultCard).join('') : '<div class="card empty"><div class="empty-icon">' + icon('search') + '</div><h3>Ничего не найдено</h3><p>Выберите другой город, увеличьте бюджет или уберите часть фильтров.</p><button class="btn btn-primary" data-action="reset-filters">Сбросить фильтры</button></div>') + '</div></div>';
 }
 
 function renderResultCard(hotel) {
-  return '<article class="card result-card"><div class="hotel-image"><img src="' + hotel.image + '" alt="' + esc(hotel.name) + '"><span class="match-pill">✦ AI Match ' + hotel.match + '%</span><button class="favorite-btn ' + (state.favorites.includes(hotel.id) ? 'active' : '') + '" data-favorite="' + hotel.id + '">' + icon('heart') + '</button></div><div class="result-content"><div class="row-between"><div><h3>' + esc(hotel.name) + '</h3><div class="muted text-sm">' + esc(hotel.location) + ' · ' + hotel.distance + ' км</div></div><span class="rating">' + hotel.rating + '</span></div><div class="result-amenities">' + hotel.amenities.slice(0, 5).map((item) => '<span class="amenity">' + esc(item) + '</span>').join('') + '</div><p class="text-sm muted" style="line-height:1.55">' + esc(hotel.matchReason) + '</p><div class="result-bottom"><label class="compare-check"><input type="checkbox" data-compare-checkbox="' + hotel.id + '" ' + (state.compare.includes(hotel.id) ? 'checked' : '') + '> Сравнить</label><div class="row"><div class="hotel-price"><strong class="price">' + money(hotel.price) + '</strong><span>' + money(hotel.price * 3) + ' за 3 ночи</span></div><button class="btn btn-primary" data-route="/app/hotel/' + hotel.id + '">Смотреть</button></div></div></div></article>';
+  return '<article class="card result-card"><div class="hotel-image"><img src="' + hotel.image + '" alt="' + esc(hotel.name) + '"><span class="match-pill">✦ AI Match ' + hotel.match + '%</span><button class="favorite-btn ' + (state.favorites.includes(hotel.id) ? 'active' : '') + '" data-favorite="' + hotel.id + '">' + icon('heart') + '</button></div><div class="result-content"><div class="row-between"><div><div class="row wrap" style="margin-bottom:6px"><span class="badge badge-brand">' + esc(hotel.city) + '</span><span class="badge badge-warning">Демо</span></div><h3>' + esc(hotel.name) + '</h3><div class="muted text-sm">' + esc(hotel.location) + ' · ' + hotel.distance + ' км до центра</div></div><span class="rating">' + hotel.rating + '</span></div><div class="result-amenities">' + hotel.amenities.slice(0, 5).map((item) => '<span class="amenity">' + esc(item) + '</span>').join('') + '</div><p class="text-sm muted" style="line-height:1.55">' + esc(hotel.matchReason) + '</p><div class="result-bottom"><label class="compare-check"><input type="checkbox" data-compare-checkbox="' + hotel.id + '" ' + (state.compare.includes(hotel.id) ? 'checked' : '') + '> Сравнить</label><div class="row"><div class="hotel-price"><strong class="price">' + money(hotel.price) + '</strong><span>' + money(hotel.price * 3) + ' за 3 ночи</span></div><button class="btn btn-primary" data-route="/app/hotel/' + hotel.id + '">Смотреть</button></div></div></div></article>';
 }
 
 function currentHotel() {
   const match = state.path.match(/^\/app\/hotel\/([^/]+)/);
-  return (state.hotels || []).find((hotel) => hotel.id === match?.[1]) || state.hotels?.[0];
+  return (state.hotels || []).find((hotel) => hotel.id === match?.[1]);
 }
 
 function renderHotelDetail() {
   const hotel = currentHotel();
-  if (!hotel) return errorBlock();
-  return '<button class="btn btn-ghost btn-sm" data-route="/app/search" style="margin-bottom:16px">← Назад к результатам</button><div class="gallery">' + hotel.gallery.map((photo, index) => '<img src="' + photo + '" alt="' + esc(hotel.name) + (index ? ' — интерьер' : '') + '">').join('') + '</div><div class="hotel-detail-head"><div><div class="row wrap" style="margin-bottom:8px"><span class="badge badge-brand">' + esc(hotel.type) + '</span><span class="rating">' + hotel.rating + ' · ' + hotel.reviews + ' отзывов</span></div><h1>' + esc(hotel.name) + '</h1><p class="muted">' + icon('map') + ' ' + esc(hotel.address) + ' · ' + hotel.distance + ' км до центра</p></div><div class="row"><button class="btn" data-favorite="' + hotel.id + '">' + icon('heart') + (state.favorites.includes(hotel.id) ? ' Сохранено' : ' Сохранить') + '</button><button class="btn" data-compare="' + hotel.id + '">Сравнить</button></div></div>' +
+  if (!hotel) return notFound();
+  return '<button class="btn btn-ghost btn-sm" data-route="/app/search" style="margin-bottom:16px">← Назад к результатам</button><div class="gallery">' + hotel.gallery.map((photo, index) => '<img src="' + photo + '" alt="' + esc(hotel.name) + (index ? ' — интерьер' : '') + '">').join('') + '</div><div class="hotel-detail-head"><div><div class="row wrap" style="margin-bottom:8px"><span class="badge badge-brand">' + esc(hotel.city) + '</span><span class="badge badge-brand">' + esc(hotel.type) + '</span><span class="badge badge-warning">Демо-каталог</span><span class="rating">' + hotel.rating + ' · ' + hotel.reviews + ' отзывов</span></div><h1>' + esc(hotel.name) + '</h1><p class="muted">' + icon('map') + ' ' + esc(hotel.address) + ' · ' + hotel.distance + ' км до центра</p></div><div class="row"><button class="btn" data-favorite="' + hotel.id + '">' + icon('heart') + (state.favorites.includes(hotel.id) ? ' Сохранено' : ' Сохранить') + '</button><button class="btn" data-compare="' + hotel.id + '">Сравнить</button></div></div>' +
     '<div class="detail-layout"><div class="stack"><section class="card"><h2>Об отеле</h2><p class="muted" style="line-height:1.7">' + esc(hotel.description) + '</p><div class="feature-list">' + hotel.amenities.map((item) => '<div class="feature">✓ ' + esc(item) + '</div>').join('') + '</div></section><section><div class="section-head"><div><h2>Доступные номера</h2><p>7–10 ноября · 3 ночи · 2 гостя</p></div></div><div class="stack">' + hotel.rooms.map((room) => renderRoom(hotel, room)).join('') + '</div></section></div>' +
     '<aside class="stack detail-side"><section class="ai-card"><div class="ai-label">✦ AI-анализ</div><div class="score-big"><div class="match-ring"><span>' + hotel.match + '%</span></div><div><h3 style="margin-bottom:4px">Сильное совпадение</h3><span class="muted text-sm">с вашим запросом</span></div></div><div class="divider"></div><p class="text-sm" style="line-height:1.6">' + esc(hotel.matchReason) + '</p><h4>Почему подойдёт</h4>' + hotel.pros.map((item) => '<div class="text-sm" style="margin:8px 0;color:#087a5a">✓ ' + esc(item) + '</div>').join('') + '<h4 style="margin-top:16px">Учтите</h4>' + hotel.cons.map((item) => '<div class="text-sm muted" style="margin:8px 0">• ' + esc(item) + '</div>').join('') + '</section><section class="card"><span class="text-xs muted">Цена от</span><h2 class="price" style="margin:5px 0">' + money(hotel.price) + ' <small class="muted" style="font-size:12px;font-weight:500">/ ночь</small></h2><p class="text-sm muted">Все сборы будут показаны до оплаты.</p><button class="btn btn-primary" style="width:100%" data-book="' + hotel.rooms[0].id + '" data-hotel="' + hotel.id + '">Выбрать номер</button></section></aside></div>';
 }
@@ -384,7 +404,7 @@ function renderCompare() {
   if (!result || result.hotels.length < 2) return '<div class="page-head"><div><h1>Сравнение отелей</h1><p>Выберите от двух до трёх вариантов.</p></div></div><div class="card empty"><div class="empty-icon">' + icon('grid') + '</div><h3>Добавьте ещё один отель</h3><p>Сравнение поможет увидеть отличия по цене, локации и удобствам.</p><button class="btn btn-primary" data-route="/app/search">К результатам</button></div>';
   const hotels = result.hotels;
   const row = (label, value) => '<tr><th>' + label + '</th>' + hotels.map((hotel) => '<td>' + value(hotel) + '</td>').join('') + '</tr>';
-  return '<div class="page-head"><div><p class="eyebrow">AI COMPARE</p><h1>Сравнение отелей</h1><p>' + hotels.length + ' варианта по главным параметрам поездки.</p></div><button class="btn" data-action="clear-compare">Очистить</button></div><div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>Параметр</th>' + hotels.map((hotel) => '<th><div class="compare-hotel"><img src="' + hotel.image + '" alt=""><strong>' + esc(hotel.name) + '</strong></div></th>').join('') + '</tr></thead><tbody>' + row('AI Match', (h) => '<span class="badge badge-ai">✦ ' + h.match + '%</span>') + row('Цена / ночь', (h) => '<strong>' + money(h.price) + '</strong>') + row('Рейтинг', (h) => '<span class="rating">' + h.rating + '</span> · ' + h.reviews) + row('До центра', (h) => h.distance + ' км') + row('Завтрак', (h) => h.amenities.includes('Завтрак') ? '✓ Включён' : '—') + row('Бассейн', (h) => h.amenities.includes('Бассейн') ? '✓ Есть' : '—') + '<tr><th>Действие</th>' + hotels.map((hotel) => '<td><button class="btn btn-sm btn-primary" data-route="/app/hotel/' + hotel.id + '">Открыть</button></td>').join('') + '</tr></tbody></table></div><section class="ai-card" style="margin-top:18px"><div class="ai-label">✦ Рекомендация HotelX</div><h2>Лучший общий выбор</h2><p style="line-height:1.65;max-width:820px">' + esc(result.recommendation) + '</p><button class="btn btn-ai" data-route="/app/hotel/' + hotels[0].id + '">Выбрать рекомендованный</button></section>';
+  return '<div class="page-head"><div><p class="eyebrow">AI COMPARE</p><h1>Сравнение отелей</h1><p>' + hotels.length + ' варианта по главным параметрам поездки.</p></div><button class="btn" data-action="clear-compare">Очистить</button></div><div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>Параметр</th>' + hotels.map((hotel) => '<th><div class="compare-hotel"><img src="' + hotel.image + '" alt=""><strong>' + esc(hotel.name) + '</strong></div></th>').join('') + '</tr></thead><tbody>' + row('AI Match', (h) => '<span class="badge badge-ai">✦ ' + h.match + '%</span>') + row('Город', (h) => esc(h.city)) + row('Цена / ночь', (h) => '<strong>' + money(h.price) + '</strong>') + row('Рейтинг', (h) => '<span class="rating">' + h.rating + '</span> · ' + h.reviews) + row('До центра', (h) => h.distance + ' км') + row('Завтрак', (h) => h.amenities.includes('Завтрак') ? '✓ Включён' : '—') + row('Бассейн', (h) => h.amenities.includes('Бассейн') ? '✓ Есть' : '—') + '<tr><th>Действие</th>' + hotels.map((hotel) => '<td><button class="btn btn-sm btn-primary" data-route="/app/hotel/' + hotel.id + '">Открыть</button></td>').join('') + '</tr></tbody></table></div><section class="ai-card" style="margin-top:18px"><div class="ai-label">✦ Рекомендация HotelX</div><h2>Лучший общий выбор</h2><p style="line-height:1.65;max-width:820px">' + esc(result.recommendation) + '</p><button class="btn btn-ai" data-route="/app/hotel/' + hotels[0].id + '">Выбрать рекомендованный</button></section>';
 }
 
 function bookingInfo() {
@@ -442,13 +462,13 @@ function renderProfile() {
   return '<div class="page-head"><div><p class="eyebrow">Аккаунт</p><h1>Профиль</h1><p>Личные данные и предпочтения поездок.</p></div></div><div class="detail-layout"><section class="card"><div class="row" style="margin-bottom:22px"><span class="avatar avatar-lg">' + initials(user.name) + '</span><div><h2 style="margin-bottom:4px">' + esc(user.name) + '</h2><span class="muted text-sm">' + esc(user.email) + '</span></div></div><div class="form-grid"><div class="field"><label>Имя</label><input class="input" value="' + esc(user.name) + '"></div><div class="field"><label>Email</label><input class="input" value="' + esc(user.email) + '" readonly></div><div class="field"><label>Телефон</label><input class="input" placeholder="+7 700 000 00 00"></div><div class="field"><label>Город</label><input class="input" value="Астана"></div><div class="field"><label>Язык</label><select class="select"><option>Русский</option><option>Қазақша</option><option>English</option></select></div><div class="field"><label>Валюта</label><select class="select"><option>KZT — ₸</option><option>USD — $</option></select></div></div><div class="modal-actions"><button class="btn btn-primary" data-action="save-settings">Сохранить</button></div></section><aside class="card"><h3>Доступы аккаунта</h3><p class="text-sm muted">Это серверно назначенные контексты. Переключение не меняет роль.</p><div class="stack">' + state.me.contexts.map((context) => '<div class="context-item ' + (context.id === state.context ? 'active' : '') + '"><span class="avatar">' + initials(context.label) + '</span><span class="grow"><strong>' + esc(context.label) + '</strong><span>' + esc(context.subtitle) + '</span></span><button class="btn btn-sm" data-context="' + context.id + '">Открыть</button></div>').join('') + '</div></aside></div>';
 }
 
-function renderLogin() {
-  return '<div class="auth-page"><section class="auth-panel">' + brand() + '<div class="auth-form"><p class="eyebrow">С возвращением</p><h1>Войдите в HotelX</h1><p class="muted" style="line-height:1.6">Безопасная идентификация выполняется через ваш аккаунт ChatGPT. Пароли не хранятся в приложении.</p><a class="btn btn-primary" style="width:100%;margin-top:20px" href="/signin-with-chatgpt?return_to=/app/explore" target="_top">Продолжить с ChatGPT ' + icon('arrow') + '</a><button class="btn" style="width:100%;margin-top:10px" data-route="/">Вернуться на главную</button><div class="ai-card" style="margin-top:22px"><div class="row"><span style="color:var(--ai)">' + icon('shield') + '</span><div><strong>Роли проверяются на сервере</strong><div class="text-xs muted" style="margin-top:3px">Frontend не может выдать права владельца или администратора.</div></div></div></div></div></section><aside class="auth-aside"><div class="auth-quote"><p class="eyebrow" style="color:#c9d2ff">HOTELX PLATFORM</p><h2>Один аккаунт. Личные и бизнес-контексты.</h2><p style="color:rgba(255,255,255,.72);line-height:1.7">После подтверждения отеля вы сможете переходить между поиском поездок и управлением бизнесом без подмены роли.</p></div></aside></div>';
+function renderLogin(viewClass = '') {
+  return '<div class="auth-page' + viewClass + '"><section class="auth-panel">' + brand() + '<div class="auth-form"><p class="eyebrow">С возвращением</p><h1>Войдите в HotelX</h1><p class="muted" style="line-height:1.6">Безопасная идентификация выполняется через ваш аккаунт ChatGPT. Пароли не хранятся в приложении.</p><a class="btn btn-primary" style="width:100%;margin-top:20px" href="/signin-with-chatgpt?return_to=/app/explore" target="_top">Продолжить с ChatGPT ' + icon('arrow') + '</a><button class="btn" style="width:100%;margin-top:10px" data-route="/">Вернуться на главную</button><div class="ai-card" style="margin-top:22px"><div class="row"><span style="color:var(--ai)">' + icon('shield') + '</span><div><strong>Роли проверяются на сервере</strong><div class="text-xs muted" style="margin-top:3px">Frontend не может выдать права владельца или администратора.</div></div></div></div></div></section><aside class="auth-aside"><div class="auth-quote"><p class="eyebrow" style="color:#c9d2ff">HOTELX PLATFORM</p><h2>Один аккаунт. Личные и бизнес-контексты.</h2><p style="color:rgba(255,255,255,.72);line-height:1.7">После подтверждения отеля вы сможете переходить между поиском поездок и управлением бизнесом без подмены роли.</p></div></aside></div>';
 }
 
-function renderRegister() {
+function renderRegister(viewClass = '') {
   const manager = state.intent === 'manager';
-  return '<div class="auth-page"><section class="auth-panel">' + brand() + '<div class="auth-form"><p class="eyebrow">Создать профиль</p><h1>' + (manager ? 'Подключите отель' : 'Начните путешествие') + '</h1><p class="muted">Выберите, что хотите сделать. Управление отелем станет доступно только после проверки.</p><div class="intent-grid"><button class="intent ' + (!manager ? 'active' : '') + '" data-intent="guest">' + icon('search') + '<strong>Найти и забронировать</strong><span>Поиск, AI Match, сравнение и поездки.</span></button><button class="intent ' + (manager ? 'active' : '') + '" data-intent="manager">' + icon('building') + '<strong>Управлять отелем</strong><span>Заявка, документы и ручная верификация.</span></button></div>' + (manager ? managerApplicationForm() : guestRegistrationForm()) + '</div></section><aside class="auth-aside"><div class="auth-quote"><p class="eyebrow" style="color:#c9d2ff">БЕЗОПАСНОСТЬ ПО УМОЛЧАНИЮ</p><h2>Права владельца нельзя получить одной кнопкой.</h2><p style="color:rgba(255,255,255,.72);line-height:1.7">Заявка проходит проверку личности, бизнеса и связи с отелем. До одобрения доступен только Verification Center.</p></div></aside></div>';
+  return '<div class="auth-page' + viewClass + '"><section class="auth-panel">' + brand() + '<div class="auth-form"><p class="eyebrow">Создать профиль</p><h1>' + (manager ? 'Подключите отель' : 'Начните путешествие') + '</h1><p class="muted">Выберите, что хотите сделать. Управление отелем станет доступно только после проверки.</p><div class="intent-grid"><button class="intent ' + (!manager ? 'active' : '') + '" data-intent="guest">' + icon('search') + '<strong>Найти и забронировать</strong><span>Поиск, AI Match, сравнение и поездки.</span></button><button class="intent ' + (manager ? 'active' : '') + '" data-intent="manager">' + icon('building') + '<strong>Управлять отелем</strong><span>Заявка, документы и ручная верификация.</span></button></div>' + (manager ? managerApplicationForm() : guestRegistrationForm()) + '</div></section><aside class="auth-aside"><div class="auth-quote"><p class="eyebrow" style="color:#c9d2ff">БЕЗОПАСНОСТЬ ПО УМОЛЧАНИЮ</p><h2>Права владельца нельзя получить одной кнопкой.</h2><p style="color:rgba(255,255,255,.72);line-height:1.7">Заявка проходит проверку личности, бизнеса и связи с отелем. До одобрения доступен только Verification Center.</p></div></aside></div>';
 }
 
 function guestRegistrationForm() {
@@ -598,17 +618,18 @@ function renderAdminSystem(kind) {
 
 function render() {
   const app = $('#app');
+  const viewClass = state.me || state.error ? viewEnterClass() : '';
   if (!state.me) {
-    if (state.error?.status === 401 || state.path === '/login') app.innerHTML = renderLogin();
+    if (state.error?.status === 401 || state.path === '/login') app.innerHTML = renderLogin(viewClass);
     else if (state.error) app.innerHTML = bootstrapError();
     else app.innerHTML = '<div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Проверяем защищённый доступ…</span></div></div>';
     bindForms();
     return;
   }
 
-  if (state.path === '/') app.innerHTML = renderLanding();
-  else if (state.path === '/login') app.innerHTML = renderLogin();
-  else if (state.path === '/register') app.innerHTML = renderRegister();
+  if (state.path === '/') app.innerHTML = renderLanding(viewClass);
+  else if (state.path === '/login') app.innerHTML = renderLogin(viewClass);
+  else if (state.path === '/register') app.innerHTML = renderRegister(viewClass);
   else if (state.path.startsWith('/app/')) {
     let content = '';
     if (state.error) content = errorBlock();
@@ -624,7 +645,7 @@ function render() {
     else if (state.path === '/app/profile') content = renderProfile();
     else if (state.path === '/app/verification') content = state.loading && !state.myVerification ? loadingBlock() : renderApplicantVerification();
     else content = notFound();
-    app.innerHTML = guestShell(content);
+    app.innerHTML = guestShell(content, viewClass);
   } else if (state.path.startsWith('/hotel/')) {
     let content = '';
     if (!canHotelRoute(state.path)) content = permissionDeniedBlock();
@@ -644,7 +665,7 @@ function render() {
     else if (state.path === '/hotel/settings') content = renderHotelSettings();
     else if (state.path === '/hotel/verification') content = renderVerificationCenter();
     else content = notFound();
-    app.innerHTML = workspaceShell(content, false);
+    app.innerHTML = workspaceShell(content, false, viewClass);
   } else if (state.path.startsWith('/admin/')) {
     let content = '';
     if (state.error) content = errorBlock();
@@ -656,8 +677,8 @@ function render() {
     else if (state.path === '/admin/errors') content = renderAdminSystem('errors');
     else if (state.path === '/admin/settings') content = renderAdminSystem('settings');
     else content = notFound();
-    app.innerHTML = workspaceShell(content, true);
-  } else app.innerHTML = renderLanding();
+    app.innerHTML = workspaceShell(content, true, viewClass);
+  } else app.innerHTML = renderLanding(viewClass);
   bindForms();
 }
 
@@ -688,8 +709,14 @@ async function submitAiSearch(event) {
   button.textContent = 'AI анализирует…';
   try {
     const result = await api('/api/guest/ai-search', { method: 'POST', body: JSON.stringify({ prompt }) });
+    state.searchPool = state.hotels || result.hotels;
     state.searchResults = result.hotels;
     state.parsedSearch = result.parsed;
+    state.filters = {
+      city: result.parsed.city === 'Казахстан' ? '' : result.parsed.city,
+      budget: Number(result.parsed.budget || 0),
+      amenities: result.parsed.amenities || []
+    };
     toast('Запрос разобран', result.summary, 'success');
     navigate('/app/search');
   } catch (error) {
@@ -700,9 +727,9 @@ async function submitAiSearch(event) {
 }
 
 function guestAnswer(prompt) {
-  if (/бассейн/i.test(prompt)) return 'Nomad Garden Astana лучше всего подходит: бассейн и спа включены, цена 48 000 ₸ за ночь, AI Match 91%. До центра 3,4 км.';
+  if (/бассейн/i.test(prompt)) return 'В демо-каталоге есть несколько вариантов с бассейном: Nomad Garden в Астане, Burabay Pine Retreat в Бурабае и Shymkent Sun Hotel. Уточните город и бюджет — я сужу поиск.';
   if (/лучше|выбрать|срав/i.test(prompt)) return 'Для вашего запроса рекомендую Aspan City Hotel: AI Match 94%, 44 000 ₸ за ночь, 2,1 км до центра и завтрак включён. Nomad Garden лучше, если важен бассейн.';
-  return 'Нашёл 4 варианта в Астане. Лучшее совпадение — Aspan City Hotel: укладывается в бюджет, близко к центру и имеет рейтинг 4.8.';
+  return 'Демо-каталог HotelX охватывает 10 городов Казахстана. Напишите город, максимальную цену за ночь и важные удобства — я сравню подходящие варианты.';
 }
 
 function submitGuestChat(event) {
@@ -712,7 +739,7 @@ function submitGuestChat(event) {
   if (!prompt) return;
   state.aiMessages.push({ from: 'user', text: prompt }, { from: 'ai', text: guestAnswer(prompt) });
   render();
-  requestAnimationFrame(() => $('.messages')?.lastElementChild?.scrollIntoView({ behavior: 'smooth' }));
+  requestAnimationFrame(() => $('.messages')?.lastElementChild?.scrollIntoView({ behavior: reducedMotionQuery.matches ? 'auto' : 'smooth' }));
 }
 
 function hotelAnswer(prompt) {
@@ -763,9 +790,19 @@ async function uploadVerificationDocument(verificationId, kind, file) {
   return payload;
 }
 
+function mobileFiltersContent() {
+  return '<div class="modal-head"><div><h2>Фильтры</h2><p>Уточните подходящие варианты.</p></div><button class="btn btn-icon btn-ghost" data-action="close-modal">' + icon('close') + '</button></div>' +
+    '<div class="field"><label for="mobile-city">Город</label><select class="select" id="mobile-city">' + cityOptions(state.filters.city) + '</select></div>' +
+    '<div class="field" style="margin-top:14px"><label for="mobile-budget">Максимальная цена</label><select class="select" id="mobile-budget"><option value="0" ' + (!state.filters.budget ? 'selected' : '') + '>Любая цена</option><option value="40000" ' + (state.filters.budget === 40000 ? 'selected' : '') + '>40 000 ₸</option><option value="50000" ' + (state.filters.budget === 50000 ? 'selected' : '') + '>50 000 ₸</option><option value="60000" ' + (state.filters.budget === 60000 ? 'selected' : '') + '>60 000 ₸</option><option value="80000" ' + (state.filters.budget === 80000 ? 'selected' : '') + '>80 000 ₸</option></select></div>' +
+    '<div class="filter-group"><h4>Удобства</h4>' + ['Завтрак','Парковка','Бассейн','Спа','Фитнес-зал'].map((item) => '<label class="check"><input type="checkbox" data-mobile-amenity="' + item + '" ' + (state.filters.amenities.includes(item) ? 'checked' : '') + '> ' + item + '</label>').join('') + '</div><div class="modal-actions"><button class="btn btn-primary" data-action="apply-mobile-filters">Показать варианты</button></div>';
+}
+
 function applySearchFilters() {
-  const { budget, amenities } = state.filters;
-  state.searchResults = (state.hotels || []).filter((hotel) => (!budget || hotel.price <= budget) && amenities.every((item) => hotel.amenities.includes(item)));
+  const { city, budget, amenities } = state.filters;
+  const source = state.searchPool || state.hotels || [];
+  state.searchResults = source
+    .filter((hotel) => (!city || hotel.city === city) && (!budget || hotel.price <= budget) && amenities.every((item) => hotel.amenities.includes(item)))
+    .sort((left, right) => right.match - left.match || left.price - right.price);
 }
 
 function toggleFavorite(id) {
@@ -886,6 +923,15 @@ async function downloadVerificationDocument(button) {
 document.addEventListener('click', async (event) => {
   const route = event.target.closest('[data-route]');
   if (route) { event.preventDefault(); if (!route.disabled) navigate(route.dataset.route); return; }
+  const cityChoice = event.target.closest('[data-city]');
+  if (cityChoice) {
+    state.filters = { city: cityChoice.dataset.city || '', budget: 0, amenities: [] };
+    state.searchPool = state.hotels;
+    state.parsedSearch = null;
+    applySearchFilters();
+    navigate('/app/search');
+    return;
+  }
   const context = event.target.closest('[data-context]');
   if (context) { setContext(context.dataset.context); return; }
   const favorite = event.target.closest('[data-favorite]');
@@ -921,11 +967,18 @@ document.addEventListener('click', async (event) => {
   else if (name === 'close-modal') { if (!event.target.closest('[data-modal-panel]') || event.target.closest('button')) closeModal(); }
   else if (name === 'retry') hydrateRoute().catch(handleLoadError);
   else if (name === 'retry-init') { state.error = null; render(); init(); }
-  else if (name === 'classic-search') { state.searchResults = state.hotels; state.parsedSearch = null; navigate('/app/search'); }
+  else if (name === 'all-hotels') { state.filters = { city: '', budget: 0, amenities: [] }; state.searchPool = state.hotels; state.searchResults = state.hotels; state.parsedSearch = null; navigate('/app/search'); }
+  else if (name === 'classic-search') {
+    state.filters = { city: $('#classic-city')?.value || '', budget: 0, amenities: [] };
+    state.searchPool = state.hotels;
+    state.parsedSearch = null;
+    applySearchFilters();
+    navigate('/app/search');
+  }
   else if (name === 'clear-compare') { state.compare = []; state.compareResult = null; persistLocal('compare', []); if (state.path === '/app/compare') navigate('/app/search'); else render(); }
-  else if (name === 'reset-filters') { state.filters = { budget: 0, amenities: [] }; state.searchResults = state.hotels; state.parsedSearch = null; render(); }
-  else if (name === 'open-filters') showModal('<div class="modal-head"><div><h2>Фильтры</h2><p>Уточните подходящие варианты.</p></div><button class="btn btn-icon btn-ghost" data-action="close-modal">' + icon('close') + '</button></div><div class="field"><label>Максимальная цена</label><select class="select" id="mobile-budget"><option value="0" ' + (!state.filters.budget ? 'selected' : '') + '>Любая цена</option><option value="40000" ' + (state.filters.budget === 40000 ? 'selected' : '') + '>40 000 ₸</option><option value="50000" ' + (state.filters.budget === 50000 ? 'selected' : '') + '>50 000 ₸</option><option value="60000" ' + (state.filters.budget === 60000 ? 'selected' : '') + '>60 000 ₸</option></select></div><div class="filter-group"><h4>Удобства</h4>' + ['Завтрак','Парковка','Бассейн','Фитнес-зал'].map((item) => '<label class="check"><input type="checkbox" data-mobile-amenity="' + item + '" ' + (state.filters.amenities.includes(item) ? 'checked' : '') + '> ' + item + '</label>').join('') + '</div><div class="modal-actions"><button class="btn btn-primary" data-action="apply-mobile-filters">Показать варианты</button></div>');
-  else if (name === 'apply-mobile-filters') { state.filters.budget = Number($('#mobile-budget')?.value || 0); state.filters.amenities = $$('[data-mobile-amenity]:checked').map((input) => input.dataset.mobileAmenity); applySearchFilters(); closeModal(); render(); }
+  else if (name === 'reset-filters') { state.filters = { city: '', budget: 0, amenities: [] }; state.searchPool = state.hotels; state.searchResults = state.hotels; state.parsedSearch = null; render(); }
+  else if (name === 'open-filters') showModal(mobileFiltersContent());
+  else if (name === 'apply-mobile-filters') { state.filters.city = $('#mobile-city')?.value || ''; state.filters.budget = Number($('#mobile-budget')?.value || 0); state.filters.amenities = $$('[data-mobile-amenity]:checked').map((input) => input.dataset.mobileAmenity); state.searchPool = state.hotels; applySearchFilters(); closeModal(); render(); }
   else if (name === 'notifications') toast('Новых уведомлений нет', 'Мы сообщим об изменениях бронирований и заявок.');
   else if (name === 'confirm-booking') await confirmBooking(action);
   else if (name === 'apply-recommendation') openApplyRecommendation();
@@ -967,6 +1020,13 @@ document.addEventListener('change', async (event) => {
     else if (event.target.value === 'rating') source.sort((a, b) => b.rating - a.rating);
     else source.sort((a, b) => b.match - a.match);
     state.searchResults = source; render();
+  }
+  if (event.target.id === 'city-filter') {
+    state.filters.city = event.target.value;
+    state.searchPool = state.hotels;
+    state.parsedSearch = null;
+    applySearchFilters();
+    render();
   }
   if (event.target.name === 'budget') {
     state.filters.budget = Number(event.target.value);

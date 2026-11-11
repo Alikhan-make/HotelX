@@ -2,9 +2,9 @@ const STYLES = "__HOTELX_STYLES__";
 const APP_JS = "__HOTELX_APP_JS__";
 const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#315efb"/><stop offset="1" stop-color="#7657e8"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="24" font-weight="700">HX</text></svg>`;
 
-const HOTELS = [
+const CORE_HOTELS = [
   {
-    id: "aspan-city", name: "Aspan City Hotel", location: "Есильский район · рядом с Ботаническим садом", address: "ул. Акмешит, 17, Астана",
+    id: "aspan-city", name: "Aspan City Hotel", city: "Астана", region: "Астана", demo: true, location: "Есильский район · рядом с Ботаническим садом", address: "ул. Акмешит, 17, Астана",
     distance: 2.1, rating: 4.8, reviews: 624, price: 44000, match: 94, type: "City hotel",
     image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1400&q=86",
     gallery: ["https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=900&q=84"],
@@ -18,7 +18,7 @@ const HOTELS = [
     ]
   },
   {
-    id: "nomad-garden", name: "Nomad Garden Astana", location: "Левый берег · квартал Expo", address: "пр. Ұлы Дала, 41, Астана",
+    id: "nomad-garden", name: "Nomad Garden Astana", city: "Астана", region: "Астана", demo: true, location: "Левый берег · квартал Expo", address: "пр. Ұлы Дала, 41, Астана",
     distance: 3.4, rating: 4.7, reviews: 418, price: 48000, match: 91, type: "Spa hotel",
     image: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1400&q=86",
     gallery: ["https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=900&q=84"],
@@ -32,7 +32,7 @@ const HOTELS = [
     ]
   },
   {
-    id: "qala-grand", name: "Qala Grand", location: "Деловой центр · Мәңгілік Ел", address: "пр. Мәңгілік Ел, 32, Астана",
+    id: "qala-grand", name: "Qala Grand", city: "Астана", region: "Астана", demo: true, location: "Деловой центр · Мәңгілік Ел", address: "пр. Мәңгілік Ел, 32, Астана",
     distance: 1.3, rating: 4.6, reviews: 792, price: 56000, match: 87, type: "Business hotel",
     image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1400&q=86",
     gallery: ["https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?auto=format&fit=crop&w=900&q=84"],
@@ -46,7 +46,7 @@ const HOTELS = [
     ]
   },
   {
-    id: "saryarka-loft", name: "Saryarka Loft Hotel", location: "Старый центр · набережная Есиля", address: "ул. Сарыарқа, 8, Астана",
+    id: "saryarka-loft", name: "Saryarka Loft Hotel", city: "Астана", region: "Астана", demo: true, location: "Старый центр · набережная Есиля", address: "ул. Сарыарқа, 8, Астана",
     distance: 2.8, rating: 4.5, reviews: 356, price: 36000, match: 82, type: "Boutique hotel",
     image: "https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?auto=format&fit=crop&w=1400&q=86",
     gallery: ["https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1587985064135-0366536eab42?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=900&q=84"],
@@ -60,6 +60,187 @@ const HOTELS = [
     ]
   }
 ];
+
+const KAZAKHSTAN_HOTELS = [
+  {
+    id: "koktobe-terrace", name: "Koktobe Terrace", city: "Алматы", region: "Алматы", demo: true, location: "Медеуский район · у подножия Кок-Тобе", address: "пр. Достык, 128, Алматы",
+    distance: 2.6, rating: 4.9, reviews: 538, price: 52000, match: 96, type: "Design hotel",
+    image: "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=900&q=84"],
+    description: "Камерный дизайн-отель с видом на горы, террасой и быстрым доступом к центру Алматы.",
+    amenities: ["Wi-Fi", "Завтрак", "Терраса", "Фитнес-зал", "Ресторан", "Трансфер"],
+    matchReason: "Высокий рейтинг, вид на горы и удобное расположение между центром и Медеу.",
+    pros: ["Вид на Заилийский Алатау", "Завтрак включён", "Рядом с Кок-Тобе"], cons: ["Ограниченная парковка"],
+    rooms: [
+      { id: "koktobe-king", type: "Mountain King", guests: 2, bed: "1 кровать King", price: 52000, left: 4, image: "https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=900&q=82", amenities: ["Вид на горы", "Кофемашина", "Завтрак"] },
+      { id: "koktobe-suite", type: "Terrace Suite", guests: 3, bed: "King и диван", price: 76000, left: 2, image: "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=900&q=82", amenities: ["Личная терраса", "Гостиная", "Панорамный вид"] }
+    ]
+  },
+  {
+    id: "zailiyskiy-resort", name: "Zailiyskiy Mountain Resort", city: "Алматы", region: "Алматы", demo: true, location: "Медеу · горный маршрут", address: "урочище Медеу, 31, Алматы",
+    distance: 12.4, rating: 4.8, reviews: 312, price: 68000, match: 90, type: "Mountain resort",
+    image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=900&q=84"],
+    description: "Горный курорт для спокойного отдыха с бассейном, спа и трансфером до Шымбулака.",
+    amenities: ["Wi-Fi", "Бассейн", "Спа", "Завтрак", "Парковка", "Трансфер"],
+    matchReason: "Лучший вариант для горного отдыха: бассейн, спа и близость к маршрутам Медеу.",
+    pros: ["Горный воздух", "Бассейн и спа", "Трансфер до склонов"], cons: ["Дальше от центра"],
+    rooms: [
+      { id: "zailiyskiy-chalet", type: "Alpine Chalet", guests: 2, bed: "1 кровать King", price: 68000, left: 3, image: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=900&q=82", amenities: ["Балкон", "Спа", "Завтрак"] },
+      { id: "zailiyskiy-family", type: "Family Lodge", guests: 4, bed: "King и 2 кровати", price: 92000, left: 1, image: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=900&q=82", amenities: ["Гостиная", "Мини-кухня", "Камин"] }
+    ]
+  },
+  {
+    id: "caspian-breeze", name: "Caspian Breeze Hotel", city: "Актау", region: "Мангистауская область", demo: true, location: "1-й микрорайон · набережная Каспия", address: "мкр. 1, 15, Актау",
+    distance: 1.1, rating: 4.8, reviews: 446, price: 46000, match: 93, type: "Seaside hotel",
+    image: "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=900&q=84"],
+    description: "Современный отель у Каспийского моря с открытым бассейном и видом на закат.",
+    amenities: ["Wi-Fi", "Бассейн", "Завтрак", "Парковка", "Ресторан", "Пляж"],
+    matchReason: "Сильное сочетание цены, расположения у моря и высокого рейтинга гостей.",
+    pros: ["Первая линия", "Открытый бассейн", "Закаты над Каспием"], cons: ["Сезонная пляжная зона"],
+    rooms: [
+      { id: "caspian-sea-view", type: "Sea View King", guests: 2, bed: "1 кровать King", price: 46000, left: 5, image: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=900&q=82", amenities: ["Вид на море", "Балкон", "Завтрак"] },
+      { id: "caspian-family", type: "Caspian Family Suite", guests: 4, bed: "King и диван", price: 70000, left: 2, image: "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=900&q=82", amenities: ["Гостиная", "Балкон", "Мини-кухня"] }
+    ]
+  },
+  {
+    id: "atyrau-river", name: "Atyrau River House", city: "Атырау", region: "Атырауская область", demo: true, location: "Европейская сторона · набережная Урала", address: "ул. Сатпаева, 22, Атырау",
+    distance: 1.7, rating: 4.6, reviews: 284, price: 49000, match: 89, type: "Business hotel",
+    image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1560185008-b033106af5c3?auto=format&fit=crop&w=900&q=84"],
+    description: "Деловой отель на набережной Урала с переговорными и круглосуточным сервисом.",
+    amenities: ["Wi-Fi", "Завтрак", "Парковка", "Переговорные", "Фитнес-зал", "Трансфер"],
+    matchReason: "Практичный выбор для деловой поездки: центр, рабочая инфраструктура и трансфер.",
+    pros: ["На набережной", "Переговорные", "Трансфер из аэропорта"], cons: ["Нет бассейна"],
+    rooms: [
+      { id: "atyrau-business", type: "Business Queen", guests: 2, bed: "1 кровать Queen", price: 49000, left: 6, image: "https://images.unsplash.com/photo-1560185008-b033106af5c3?auto=format&fit=crop&w=900&q=82", amenities: ["Рабочая зона", "Завтрак", "Кофемашина"] },
+      { id: "atyrau-executive", type: "River Executive", guests: 2, bed: "1 кровать King", price: 69000, left: 2, image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=900&q=82", amenities: ["Вид на реку", "Lounge", "Поздний выезд"] }
+    ]
+  },
+  {
+    id: "turkistan-caravan", name: "Turkistan Caravan", city: "Туркестан", region: "Туркестанская область", demo: true, location: "Исторический центр · рядом с мавзолеем", address: "ул. Байбурт, 5, Туркестан",
+    distance: 0.9, rating: 4.7, reviews: 391, price: 38000, match: 92, type: "Heritage hotel",
+    image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1587985064135-0366536eab42?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?auto=format&fit=crop&w=900&q=84"],
+    description: "Отель в современной интерпретации караван-сарая рядом с главными памятниками Туркестана.",
+    amenities: ["Wi-Fi", "Завтрак", "Парковка", "Ресторан", "Экскурсии", "Трансфер"],
+    matchReason: "Аутентичная атмосфера, пешая доступность к историческому центру и доступная цена.",
+    pros: ["Исторический центр", "Локальная кухня", "Организация экскурсий"], cons: ["Небольшие стандартные номера"],
+    rooms: [
+      { id: "turkistan-standard", type: "Caravan Double", guests: 2, bed: "1 двуспальная кровать", price: 38000, left: 5, image: "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?auto=format&fit=crop&w=900&q=82", amenities: ["Завтрак", "Чайная станция", "Кондиционер"] },
+      { id: "turkistan-courtyard", type: "Courtyard Suite", guests: 3, bed: "King и диван", price: 56000, left: 2, image: "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=900&q=82", amenities: ["Вид во двор", "Гостиная", "Халаты"] }
+    ]
+  },
+  {
+    id: "burabay-pine", name: "Burabay Pine Retreat", city: "Бурабай", region: "Акмолинская область", demo: true, location: "Озеро Бурабай · сосновый бор", address: "ул. Кенесары, 19, Бурабай",
+    distance: 2.2, rating: 4.9, reviews: 267, price: 61000, match: 95, type: "Nature resort",
+    image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=900&q=84"],
+    description: "Загородный курорт в сосновом бору с озёрными маршрутами, спа и семейными домиками.",
+    amenities: ["Wi-Fi", "Бассейн", "Спа", "Завтрак", "Парковка", "Прокат велосипедов"],
+    matchReason: "Лучший природный отдых в каталоге: лес, озеро, спа и высокий рейтинг семейных гостей.",
+    pros: ["Сосновый бор", "Озеро рядом", "Спа и бассейн"], cons: ["Высокий спрос по выходным"],
+    rooms: [
+      { id: "burabay-pine-room", type: "Pine View Room", guests: 2, bed: "1 кровать King", price: 61000, left: 3, image: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=900&q=82", amenities: ["Балкон", "Вид на лес", "Завтрак"] },
+      { id: "burabay-cabin", type: "Family Cabin", guests: 5, bed: "2 спальни", price: 98000, left: 1, image: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=900&q=82", amenities: ["Терраса", "Мини-кухня", "Гостиная"] }
+    ]
+  },
+  {
+    id: "shymkent-sun", name: "Shymkent Sun Hotel", city: "Шымкент", region: "Шымкент", demo: true, location: "Центр · парк Абая", address: "пр. Тауке хана, 47, Шымкент",
+    distance: 1.4, rating: 4.6, reviews: 503, price: 33000, match: 88, type: "City hotel",
+    image: "https://images.unsplash.com/photo-1560347876-aeef00ee58a1?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1560347876-aeef00ee58a1?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=900&q=84"],
+    description: "Светлый городской отель рядом с парками, ресторанами и основными улицами Шымкента.",
+    amenities: ["Wi-Fi", "Завтрак", "Парковка", "Бассейн", "Кафе", "Кондиционер"],
+    matchReason: "Выгодная цена, центральное расположение и открытый сезонный бассейн.",
+    pros: ["Лучшая цена", "Центр города", "Сезонный бассейн"], cons: ["Небольшой фитнес-зал"],
+    rooms: [
+      { id: "shymkent-comfort", type: "Sunny Comfort", guests: 2, bed: "1 кровать Queen", price: 33000, left: 7, image: "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=900&q=82", amenities: ["Завтрак", "Кондиционер", "Рабочая зона"] },
+      { id: "shymkent-family", type: "Garden Family", guests: 4, bed: "Queen и диван", price: 49000, left: 3, image: "https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=900&q=82", amenities: ["Балкон", "Детская кровать", "Мини-холодильник"] }
+    ]
+  },
+  {
+    id: "oskemen-altai", name: "Altai View Oskemen", city: "Өскемен", region: "Восточно-Казахстанская область", demo: true, location: "Центр · набережная Иртыша", address: "ул. Казахстан, 66, Өскемен",
+    distance: 1.8, rating: 4.7, reviews: 229, price: 41000, match: 90, type: "River hotel",
+    image: "https://images.unsplash.com/photo-1549294413-26f195200c16?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1549294413-26f195200c16?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=900&q=84"],
+    description: "Городской отель с видом на Иртыш и удобной отправной точкой для поездок по Восточному Казахстану.",
+    amenities: ["Wi-Fi", "Завтрак", "Парковка", "Фитнес-зал", "Сауна", "Трансфер"],
+    matchReason: "Комфортная база для города и поездок в Алтай: набережная, сауна и парковка.",
+    pros: ["Вид на Иртыш", "Сауна", "Удобный выезд из города"], cons: ["Нет бассейна"],
+    rooms: [
+      { id: "oskemen-river", type: "Irtysh Queen", guests: 2, bed: "1 кровать Queen", price: 41000, left: 5, image: "https://images.unsplash.com/photo-1560185008-b033106af5c3?auto=format&fit=crop&w=900&q=82", amenities: ["Вид на реку", "Завтрак", "Рабочая зона"] },
+      { id: "oskemen-altai-suite", type: "Altai Suite", guests: 3, bed: "King и диван", price: 62000, left: 2, image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=900&q=82", amenities: ["Гостиная", "Сауна", "Кофемашина"] }
+    ]
+  },
+  {
+    id: "karaganda-central", name: "Karaganda Central", city: "Караганда", region: "Карагандинская область", demo: true, location: "Новый город · Центральный парк", address: "пр. Бухар жырау, 38, Караганда",
+    distance: 1.2, rating: 4.5, reviews: 341, price: 35000, match: 85, type: "Business hotel",
+    image: "https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1590073242678-70ee3fc28e8e?auto=format&fit=crop&w=900&q=84"],
+    description: "Функциональный отель в центре Караганды для командировок и коротких городских поездок.",
+    amenities: ["Wi-Fi", "Завтрак", "Парковка", "Переговорные", "Коворкинг", "Ресторан"],
+    matchReason: "Доступный деловой вариант с коворкингом и центральным расположением.",
+    pros: ["Центр города", "Коворкинг", "Бесплатная парковка"], cons: ["Базовый набор wellness"],
+    rooms: [
+      { id: "karaganda-standard", type: "Central Double", guests: 2, bed: "1 двуспальная кровать", price: 35000, left: 8, image: "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?auto=format&fit=crop&w=900&q=82", amenities: ["Завтрак", "Рабочая зона", "Чайная станция"] },
+      { id: "karaganda-business", type: "Business Studio", guests: 2, bed: "1 кровать King", price: 48000, left: 3, image: "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=900&q=82", amenities: ["Мини-кухня", "Кофемашина", "Поздний выезд"] }
+    ]
+  },
+  {
+    id: "kostanay-steppe", name: "Kostanay Steppe Hotel", city: "Костанай", region: "Костанайская область", demo: true, location: "Центр · набережная Тобола", address: "ул. Аль-Фараби, 74, Костанай",
+    distance: 1.6, rating: 4.5, reviews: 198, price: 32000, match: 84, type: "City hotel",
+    image: "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=1400&q=86",
+    gallery: ["https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=1600&q=86", "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=900&q=84", "https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=900&q=84"],
+    description: "Спокойный городской отель рядом с набережной Тобола и деловым центром Костаная.",
+    amenities: ["Wi-Fi", "Завтрак", "Парковка", "Кафе", "Прачечная", "Трансфер"],
+    matchReason: "Доступная цена, удобное расположение и всё необходимое для короткой поездки.",
+    pros: ["Рядом с набережной", "Доступная цена", "Трансфер"], cons: ["Нет бассейна"],
+    rooms: [
+      { id: "kostanay-comfort", type: "Steppe Comfort", guests: 2, bed: "2 односпальные кровати", price: 32000, left: 6, image: "https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=900&q=82", amenities: ["Завтрак", "Рабочая зона", "Кондиционер"] },
+      { id: "kostanay-studio", type: "Tobol Studio", guests: 3, bed: "Queen и диван", price: 45000, left: 2, image: "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=900&q=82", amenities: ["Мини-кухня", "Гостиная", "Вид на город"] }
+    ]
+  }
+];
+
+const HOTELS = [...CORE_HOTELS, ...KAZAKHSTAN_HOTELS];
+
+const CITY_ALIASES = [
+  { city: "Астана", aliases: ["астан", "нур-султан", "нур султан", "нұр-сұлтан", "нұр сұлтан", "nur-sultan", "nur sultan", "astana"] },
+  { city: "Алматы", aliases: ["алматы", "алма-ат", "almaty"] },
+  { city: "Шымкент", aliases: ["шымкент", "shymkent"] },
+  { city: "Актау", aliases: ["актау", "ақтау", "aktau"] },
+  { city: "Атырау", aliases: ["атырау", "atyrau"] },
+  { city: "Туркестан", aliases: ["туркестан", "түркістан", "turkistan"] },
+  { city: "Бурабай", aliases: ["бурабай", "боровое", "щучинск", "burabay"] },
+  { city: "Караганда", aliases: ["караган", "қараған", "karaganda"] },
+  { city: "Өскемен", aliases: ["өскемен", "оскемен", "усть-каменогор", "ust-kamenogorsk"] },
+  { city: "Костанай", aliases: ["костан", "қостан", "kostanay"] }
+];
+
+function canonicalCity(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/ё/g, "е");
+  if (!normalized) return null;
+  return CITY_ALIASES.find((item) => item.aliases.some((alias) => normalized.includes(alias)))?.city || null;
+}
+
+function amenitiesFromPrompt(prompt) {
+  const value = String(prompt || "");
+  return [
+    ["Бассейн", /бассейн|pool/i, /(?:без|no|without)\s+(?:бассейн\w*|pool)/iu],
+    ["Спа", /(?:^|[^\p{L}])(?:спа|spa)(?=$|[^\p{L}])/iu, /(?:без|no|without)\s+(?:спа|spa)/iu],
+    ["Завтрак", /завтрак|breakfast/i, /(?:без|no|without)\s+(?:завтрак\w*|breakfast)/iu],
+    ["Парковка", /парковк|parking/i, /(?:без|no|without)\s+(?:парковк\w*|parking)/iu],
+    ["Фитнес-зал", /фитнес|тренаж[её]р|gym/i, /(?:без|no|without)\s+(?:фитнес\w*|тренаж[её]р\w*|gym)/iu]
+  ].filter((item) => item[1].test(value) && !item[2].test(value)).map((item) => item[0]);
+}
+
+function budgetFromPrompt(prompt) {
+  const match = String(prompt || "").match(/(?:до|budget|max(?:imum)?)[^0-9]{0,12}(\d{1,3}(?:[\s,.]\d{3})+|\d{4,7})(?!\d)/i);
+  const value = Number((match?.[1] || "").replace(/\D/g, ""));
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
 
 const DASHBOARD = {
   hotel: { id: "aspan-city", name: "Aspan City Hotel" },
@@ -172,7 +353,7 @@ function protectMutation(request, url) {
 }
 
 function publicHotel(hotel) {
-  return { id: hotel.id, name: hotel.name, location: hotel.location, address: hotel.address, distance: hotel.distance, rating: hotel.rating, reviews: hotel.reviews, price: hotel.price, match: hotel.match, type: hotel.type, image: hotel.image, gallery: hotel.gallery, description: hotel.description, amenities: hotel.amenities, matchReason: hotel.matchReason, pros: hotel.pros, cons: hotel.cons, rooms: hotel.rooms };
+  return { id: hotel.id, name: hotel.name, city: hotel.city, region: hotel.region, demo: hotel.demo === true, location: hotel.location, address: hotel.address, distance: hotel.distance, rating: hotel.rating, reviews: hotel.reviews, price: hotel.price, match: hotel.match, type: hotel.type, image: hotel.image, gallery: hotel.gallery, description: hotel.description, amenities: hotel.amenities, matchReason: hotel.matchReason, pros: hotel.pros, cons: hotel.cons, rooms: hotel.rooms };
 }
 
 async function readBody(request) { try { return await request.json(); } catch { return {}; } }
@@ -267,18 +448,32 @@ async function handleApi(request, url, env) {
 
   if (request.method === "GET" && path === "/api/guest/hotels") {
     const auth = selectedContext(request, actor, "personal"); if (auth.error) return auth.error;
-    const budget = Number(url.searchParams.get("budget") || 0); const amenity = (url.searchParams.get("amenity") || "").toLowerCase();
-    const hotels = HOTELS.filter((hotel) => (!budget || hotel.price <= budget) && (!amenity || hotel.amenities.some((item) => item.toLowerCase().includes(amenity))));
-    return json({ hotels: hotels.map(publicHotel), query: { city: "Астана", checkIn: "2026-11-07", checkOut: "2026-11-10", guests: 2 } });
+    const requestedBudget = Number(url.searchParams.get("budget") || 0);
+    const budget = Number.isFinite(requestedBudget) && requestedBudget > 0 ? requestedBudget : 0;
+    const amenity = (url.searchParams.get("amenity") || "").toLowerCase();
+    const city = canonicalCity(url.searchParams.get("city"));
+    const hotels = HOTELS
+      .filter((hotel) => (!city || hotel.city === city) && (!budget || hotel.price <= budget) && (!amenity || hotel.amenities.some((item) => item.toLowerCase().includes(amenity))))
+      .sort((left, right) => right.match - left.match || left.price - right.price);
+    return json({ hotels: hotels.map(publicHotel), query: { city: city || "Казахстан", checkIn: "2026-11-07", checkOut: "2026-11-10", guests: 2 }, catalogScope: "demo" });
   }
 
   if (request.method === "POST" && path === "/api/guest/ai-search") {
     const auth = selectedContext(request, actor, "personal"); if (auth.error) return auth.error;
     const body = await readBody(request); const prompt = String(body.prompt || "");
-    const budgetMatch = prompt.replace(/\s/g, "").match(/(?:до|budget)[^0-9]{0,8}(\d{4,6})/i); const budget = budgetMatch ? Number(budgetMatch[1]) : 50000;
-    const wantsPool = /бассейн|pool/i.test(prompt); let hotels = HOTELS.filter((hotel) => hotel.price <= budget || hotel.match >= 90);
-    if (wantsPool) hotels = hotels.filter((hotel) => hotel.amenities.includes("Бассейн"));
-    return json({ parsed: { city: "Астана", nights: 3, guests: 2, budget, location: "рядом с центром", preferences: wantsPool ? ["Бассейн"] : ["Высокий рейтинг", "Завтрак"] }, hotels: hotels.map(publicHotel), summary: `Нашли ${hotels.length} подходящих варианта. Лучшее совпадение — ${hotels[0]?.name || "не найдено"}.` });
+    const budget = budgetFromPrompt(prompt);
+    const city = canonicalCity(prompt);
+    const amenities = amenitiesFromPrompt(prompt);
+    const hotels = HOTELS
+      .filter((hotel) => (!city || hotel.city === city) && (!budget || hotel.price <= budget) && amenities.every((item) => hotel.amenities.includes(item)))
+      .sort((left, right) => right.match - left.match || left.price - right.price);
+    const scope = city || "по всему Казахстану";
+    return json({
+      parsed: { city: city || "Казахстан", nights: 3, guests: 2, budget: budget || null, location: city ? "в выбранном городе" : "по всей стране", preferences: amenities, amenities },
+      hotels: hotels.map(publicHotel),
+      catalogScope: "demo",
+      summary: `Нашли ${hotels.length} вариантов ${scope}. ${hotels[0] ? `Лучшее совпадение — ${hotels[0].name}.` : "Попробуйте изменить условия."}`
+    });
   }
 
   const guestHotelMatch = path.match(/^\/api\/guest\/hotels\/([a-z0-9-]+)$/);
@@ -314,6 +509,7 @@ async function handleApi(request, url, env) {
         const inventoryStatements = nightlyDates(start, nights).map((stayDate) => env.DB.prepare("INSERT INTO room_inventory (hotel_id, room_id, stay_date, capacity, booked) VALUES (?, ?, ?, ?, 1) ON CONFLICT(hotel_id, room_id, stay_date) DO UPDATE SET booked = booked + 1")
           .bind(hotel.id, room.id, stayDate, room.left));
         await env.DB.batch([
+          env.DB.prepare("INSERT OR IGNORE INTO hotels (id, name, verification_status) VALUES (?, ?, ?)").bind(hotel.id, hotel.name, hotel.demo ? "DEMO" : "VERIFIED"),
           ...inventoryStatements,
           env.DB.prepare("INSERT INTO bookings (id, guest_user_id, hotel_id, room_id, room_type, check_in, check_out, guests, nights, total, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED')")
             .bind(booking.id, actor.id, hotel.id, room.id, room.type, checkIn, checkOut, guests, nights, total),
