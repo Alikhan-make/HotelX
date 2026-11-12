@@ -122,7 +122,10 @@ function cityOptions(selected = '') {
 function setupMotion() {
   document.body.classList.add('motion-ready');
   const targets = $$('.landing-platform, .landing-how, .landing-faq, .hotel-card, .result-card, .kpi, .ai-card, .room-card, .platform-grid > .card, .how-grid > div');
-  targets.forEach((target) => target.classList.add('motion-target'));
+  targets.forEach((target, index) => {
+    target.classList.add('motion-target');
+    target.style.setProperty('--motion-delay', Math.min(index * 42, 420) + 'ms');
+  });
   if (reducedMotionQuery.matches || !('IntersectionObserver' in window)) {
     targets.forEach((target) => target.classList.add('is-visible'));
     return;
@@ -158,8 +161,11 @@ function setupMotion() {
   }, { passive: true });
   window.addEventListener('scroll', () => {
     const max = document.documentElement.scrollHeight - window.innerHeight;
-    document.documentElement.style.setProperty('--scroll-progress', max > 0 ? (window.scrollY / max * 100).toFixed(2) + '%' : '0%');
+    const progress = max > 0 ? window.scrollY / max : 0;
+    document.documentElement.style.setProperty('--scroll-progress', (progress * 100).toFixed(2) + '%');
+    document.documentElement.style.setProperty('--scroll-y', window.scrollY.toFixed(1) + 'px');
   }, { passive: true });
+  window.dispatchEvent(new Event('scroll'));
 }
 
 async function api(path, options = {}) {
