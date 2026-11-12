@@ -700,7 +700,7 @@ async function handleApi(request, url, env) {
 
 const PAGE = `<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#101828"><meta name="description" content="HotelX — AI-платформа для поиска отелей, бронирования и управления гостиничным бизнесом."><title>HotelX — AI для гостей и отелей</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/styles.css?v=__HOTELX_ASSET_VERSION__"></head>
-<body><div id="app"><div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Загружаем ваш контекст…</span></div></div></div><div id="toast-region" class="toast-region" aria-live="polite"></div><div id="modal-root"></div><script src="/assets/app.js?v=__HOTELX_ASSET_VERSION__" defer></script></body></html>`;
+<body><div id="app"><div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Загружаем ваш контекст…</span></div></div></div><div id="toast-region" class="toast-region" aria-live="polite"></div><div id="modal-root"></div><div id="scroll-progress" aria-hidden="true"></div><script src="/assets/app.js?v=__HOTELX_ASSET_VERSION__" defer></script></body></html>`;
 
 const SECURITY_HEADERS = {
   "content-security-policy": "default-src 'self'; img-src 'self' https://images.unsplash.com data:; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; object-src 'none'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",

@@ -102,6 +102,8 @@ const state = {
 };
 
 let lastAnimatedPath = null;
+let motionObserver = null;
+let motionBound = false;
 
 function viewEnterClass() {
   if (state.loading || lastAnimatedPath === state.path) return '';
@@ -115,6 +117,49 @@ function hotelCities() {
 
 function cityOptions(selected = '') {
   return [''].concat(hotelCities()).map((city) => '<option value="' + esc(city) + '" ' + (city === selected ? 'selected' : '') + '>' + (city || 'Весь Казахстан') + '</option>').join('');
+}
+
+function setupMotion() {
+  document.body.classList.add('motion-ready');
+  const targets = $$('.landing-platform, .landing-how, .landing-faq, .hotel-card, .result-card, .kpi, .ai-card, .room-card, .platform-grid > .card, .how-grid > div');
+  targets.forEach((target) => target.classList.add('motion-target'));
+  if (reducedMotionQuery.matches || !('IntersectionObserver' in window)) {
+    targets.forEach((target) => target.classList.add('is-visible'));
+    return;
+  }
+  if (!motionObserver) {
+    motionObserver = new IntersectionObserver((entries) => entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        motionObserver.unobserve(entry.target);
+      }
+    }), { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+  }
+  targets.forEach((target) => {
+    if (!target.classList.contains('is-visible')) motionObserver.observe(target);
+  });
+  if (motionBound) return;
+  motionBound = true;
+  let pointerFrame = 0;
+  window.addEventListener('pointermove', (event) => {
+    if (event.pointerType === 'touch' || reducedMotionQuery.matches) return;
+    if (pointerFrame) return;
+    pointerFrame = requestAnimationFrame(() => {
+      const hero = $('.hero-visual');
+      if (hero) {
+        const rect = hero.getBoundingClientRect();
+          const x = Math.max(-1, Math.min(1, (event.clientX - rect.left) / rect.width - 0.5)) * 10;
+          const y = Math.max(-1, Math.min(1, (event.clientY - rect.top) / rect.height - 0.5)) * 8;
+        hero.style.setProperty('--pointer-x', x.toFixed(2) + 'px');
+        hero.style.setProperty('--pointer-y', y.toFixed(2) + 'px');
+      }
+      pointerFrame = 0;
+    });
+  }, { passive: true });
+  window.addEventListener('scroll', () => {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    document.documentElement.style.setProperty('--scroll-progress', max > 0 ? (window.scrollY / max * 100).toFixed(2) + '%' : '0%');
+  }, { passive: true });
 }
 
 async function api(path, options = {}) {
@@ -636,6 +681,7 @@ function render() {
     else if (state.error) app.innerHTML = bootstrapError();
     else app.innerHTML = '<div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Проверяем защищённый доступ…</span></div></div>';
     bindForms();
+    setupMotion();
     return;
   }
 
@@ -692,6 +738,7 @@ function render() {
     app.innerHTML = workspaceShell(content, true, viewClass);
   } else app.innerHTML = renderLanding(viewClass);
   bindForms();
+  setupMotion();
 }
 
 function notFound() {
