@@ -325,6 +325,25 @@ tbody tr:hover { background: #fafbfc; }
 .forecast-point small { color: var(--muted); font-size: 10px; }
 .report-grid, .integration-grid, .staff-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
 .report-icon, .integration-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); margin-bottom: 18px; }
+.landing-platform, .landing-how, .landing-faq { padding: 88px clamp(18px,6vw,90px); }
+.landing-platform { background: #f8faff; }
+.platform-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-top: 28px; }
+.platform-grid .card { display: flex; flex-direction: column; align-items: flex-start; }
+.platform-grid .card p { flex: 1; line-height: 1.6; }
+.landing-how { background: #101828; color: #fff; }
+.landing-how h2 { max-width: 560px; color: #fff; }
+.landing-how .eyebrow { color: #bfcaff; }
+.how-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-top: 28px; }
+.how-grid > div { padding: 24px; border: 1px solid rgba(255,255,255,.14); border-radius: 18px; background: rgba(255,255,255,.05); }
+.how-grid span { display: block; color: #9aaeff; font-size: 13px; font-weight: 850; margin-bottom: 32px; }
+.how-grid strong { display: block; font-size: 18px; margin-bottom: 8px; }
+.how-grid p { margin: 0; color: rgba(255,255,255,.68); line-height: 1.6; }
+.landing-faq { display: grid; grid-template-columns: minmax(220px,.65fr) minmax(0,1.35fr); gap: 50px; }
+.faq-list { display: grid; gap: 10px; }
+.faq-list details { border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; background: #fff; }
+.faq-list summary { cursor: pointer; font-weight: 800; }
+.faq-list details p { margin: 12px 0 0; color: var(--muted); line-height: 1.6; }
+.landing-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px clamp(18px,6vw,90px); border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 
 .verification-stepper { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin: 24px 0; }
 .verify-step { position: relative; padding-top: 18px; font-size: 11px; color: var(--muted); font-weight: 700; }
@@ -366,6 +385,12 @@ tbody tr:hover { background: #fafbfc; }
 .modal-head h2 { margin: 0 0 5px; font-size: 22px; }
 .modal-head p { margin: 0; color: var(--muted); font-size: 13px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+.tour-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.tour-photo { margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: #f8fafc; }
+.tour-photo img { display: block; width: 100%; height: 150px; object-fit: cover; }
+.tour-photo figcaption { display: grid; gap: 3px; padding: 10px 11px; }
+.tour-photo figcaption strong { font-size: 12px; }
+.tour-photo figcaption span { color: var(--muted); font-size: 10px; }
 @keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(.98); } }
 
 .boot:not(.boot-error) .brand-mark { animation: boot-pulse 1.65s ease-in-out infinite; }
@@ -462,6 +487,8 @@ tbody tr:hover { background: #fafbfc; }
   .mobile-menu { display: inline-flex; }
   .auth-page { grid-template-columns: 1fr; }
   .auth-aside { display: none; }
+  .platform-grid, .how-grid { grid-template-columns: 1fr; }
+  .landing-faq { grid-template-columns: 1fr; gap: 24px; }
 }
 
 @media (max-width: 720px) {
@@ -476,6 +503,8 @@ tbody tr:hover { background: #fafbfc; }
   .hero-match { left: 12px; right: 12px; bottom: 12px; padding: 13px; grid-template-columns: auto 1fr; }
   .hero-match .btn { display: none; }
   .value-grid { padding: 40px 18px; }
+  .landing-platform, .landing-how, .landing-faq { padding: 58px 18px; }
+  .landing-footer { padding: 20px 18px; flex-wrap: wrap; }
   .guest-header { height: 64px; }
   .guest-header-inner { padding: 0 16px; }
   .guest-nav { display: none; }
@@ -543,6 +572,9 @@ tbody tr:hover { background: #fafbfc; }
   .admin-stats { grid-template-columns: 1fr 1fr; }
   .modal-backdrop { place-items: end center; padding: 0; }
   .modal { width: 100%; max-height: 92vh; border-radius: 24px 24px 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom)); }
+  .tour-grid { grid-template-columns: 1fr; }
+  .tour-photo { display: grid; grid-template-columns: 105px minmax(0,1fr); align-items: center; }
+  .tour-photo img { height: 86px; }
   .modal-actions { flex-direction: column-reverse; }
   .modal-actions .btn { width: 100%; }
   .context-popover.guest-context { top: 58px; right: 10px; width: calc(100% - 20px); }

@@ -105,4 +105,6 @@ const appSource = await appResponse.text();
 new Script(appSource, { filename: "assets/app.js" });
 assert.equal((appSource.match(/const \$ =/g) || []).length, 1, "Single-selector helper must be declared once");
 assert.equal((appSource.match(/const \$\$ =/g) || []).length, 1, "Multi-selector helper must survive bundling");
+assert.match(appSource, /function openVirtualTour\(/, "Hotel detail must expose the demo virtual-tour flow");
+assert.match(appSource, /data-action="open-tour"/, "Virtual-tour trigger must be wired to an action");
 console.log("PASS browser bundle syntax, selectors, versioning and strict CSP");
