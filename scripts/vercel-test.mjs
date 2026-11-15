@@ -14,7 +14,7 @@ const me = await (await call("/api/me")).json();
 assert.equal(me.publicDemo, true);
 assert.equal(me.user.id, "public-demo-visitor");
 assert.deepEqual(me.contexts.map((x) => x.id), ["personal", "business"]);
-for (const path of ["/", "/app/ai", "/hotel/ai", "/hotel/dashboard", "/app/search", "/login", "/register"]) {
+for (const path of ["/", "/plans", "/hotel/subscription", "/app/ai", "/hotel/ai", "/hotel/dashboard", "/app/search", "/login", "/register"]) {
   const res = await call(path);
   assert.equal(res.status, 200, path);
   assert.match(res.headers.get("content-type"), /text\/html/);

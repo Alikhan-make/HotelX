@@ -6,7 +6,7 @@
     "dev": "bash scripts/build.sh && node scripts/preview-server.mjs",
     "build": "bash scripts/build.sh",
     "pretest": "npm run build",
-    "test": "node scripts/smoke-test.mjs && node scripts/d1-smoke-test.mjs && node scripts/assistant-test.mjs",
+    "test": "node scripts/smoke-test.mjs && node scripts/d1-smoke-test.mjs && node scripts/assistant-test.mjs && node scripts/subscription-test.mjs",
     "build:vercel": "node scripts/build-vercel.mjs",
     "test:vercel": "npm run build:vercel && node scripts/vercel-test.mjs"
   }

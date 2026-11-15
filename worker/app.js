@@ -73,6 +73,9 @@ const state = {
   context: 'personal',
   path: location.pathname,
   loading: false,
+  billingCycle: 'monthly',
+  subscription: null,
+  pendingSubscription: null,
   error: null,
   contextMenu: false,
   intent: new URLSearchParams(location.search).get('intent') === 'manager' ? 'manager' : 'guest',
@@ -216,6 +219,7 @@ function showModal(content, large = false) {
 }
 
 function closeModal() {
+  state.pendingSubscription = null;
   $('#modal-root').innerHTML = '';
 }
 
@@ -343,7 +347,7 @@ const HOTEL_NAV = [
   { label: 'Отель', items: [['/hotel/reservations','Бронирования','booking'],['/hotel/rooms','Номера','bed'],['/hotel/pricing','Цены','tag'],['/hotel/forecast','Прогноз','forecast']] },
   { label: 'AI', items: [['/hotel/recommendations','Рекомендации','spark']] },
   { label: 'Отчёты', items: [['/hotel/reports','Отчёты','file']] },
-  { label: 'Управление', items: [['/hotel/staff','Команда','users'],['/hotel/integrations','Интеграции','plug'],['/hotel/settings','Настройки','settings']] }
+  { label: 'Управление', items: [['/hotel/staff','Команда','users'],['/hotel/integrations','Интеграции','plug'],['/hotel/subscription','Подписка','card'],['/hotel/settings','Настройки','settings']] }
 ];
 
 const ADMIN_NAV = [
@@ -376,7 +380,7 @@ const HOTEL_ROUTE_PERMISSIONS = {
   '/hotel/reservations': 'VIEW_RESERVATIONS', '/hotel/rooms': 'VIEW_ROOMS', '/hotel/pricing': 'VIEW_PRICING',
   '/hotel/forecast': 'VIEW_ANALYTICS', '/hotel/recommendations': 'VIEW_PRICING', '/hotel/reports': 'VIEW_REPORTS',
   '/hotel/staff': 'MANAGE_STAFF', '/hotel/integrations': 'MANAGE_INTEGRATIONS', '/hotel/settings': 'MANAGE_SETTINGS',
-  '/hotel/verification': 'ALL'
+  '/hotel/subscription': 'MANAGE_SETTINGS', '/hotel/verification': 'ALL'
 };
 
 function canHotelRoute(path) {
@@ -414,14 +418,83 @@ function hotelCard(hotel) {
   return '<article class="hotel-card"><div class="hotel-image"><img src="' + hotel.image + '" alt="' + esc(hotel.name) + '" loading="lazy"><button class="favorite-btn ' + (favorite ? 'active' : '') + '" data-favorite="' + hotel.id + '" aria-label="В избранное">' + icon('heart') + '</button><span class="match-pill">✦ AI Match ' + hotel.match + '%</span></div><div class="hotel-body"><div class="row-between" style="align-items:flex-start"><h3>' + esc(hotel.name) + '</h3><span class="badge badge-brand">' + esc(hotel.city) + '</span></div><div class="hotel-location">' + esc(hotel.location) + '</div><div class="hotel-meta"><span class="rating">' + hotel.rating + ' <span class="muted">(' + hotel.reviews + ')</span></span><div class="hotel-price"><strong class="price">' + money(hotel.price) + '</strong><span>за ночь</span></div></div><div class="row" style="margin-top:15px"><button class="btn btn-sm grow" data-compare="' + hotel.id + '">' + (state.compare.includes(hotel.id) ? '✓ В сравнении' : 'Сравнить') + '</button><button class="btn btn-sm btn-primary grow" data-route="/app/hotel/' + hotel.id + '">Смотреть</button></div></div></article>';
 }
 
+
+// Illustrative SaaS plans only; never grant permissions or initiate a payment.
+const SUBSCRIPTION_PLANS = [
+  { id: 'starter', name: 'Starter', monthly: 19900, description: 'Для небольшого отеля и первого знакомства с HotelX.', features: ['1 отель · до 30 номеров', 'До 3 участников команды', 'Бронирования и базовые отчёты', 'Демопомощник для владельца'] },
+  { id: 'pro', name: 'Pro', monthly: 49900, description: 'Для команды, которая управляет выручкой каждый день.', features: ['1 отель · до 150 номеров', 'До 15 участников команды', 'Аналитика ADR и RevPAR', 'Прогноз спроса и рекомендации', 'Расширенные демоотчёты'] },
+  { id: 'enterprise', name: 'Enterprise', monthly: 99900, description: 'Для сети отелей с общими процессами и аналитикой.', features: ['До 10 отелей · до 1 000 номеров', 'До 100 участников команды', 'Возможности Pro для сети', 'Макеты интеграций и сводных отчётов', 'Индивидуальное сопровождение — концепт'] }
+];
+
+function normalizeSubscription(value) {
+  return value && SUBSCRIPTION_PLANS.some((plan) => plan.id === value.plan) && ['monthly', 'annual'].includes(value.cycle) ? { plan: value.plan, cycle: value.cycle } : null;
+}
+
+function subscriptionQuote(plan, cycle) {
+  const monthly = cycle === 'annual' ? plan.monthly * 0.8 : plan.monthly;
+  return { monthly, total: monthly * (cycle === 'annual' ? 12 : 1), saving: cycle === 'annual' ? plan.monthly * 12 - monthly * 12 : 0 };
+}
+
+function setBillingCycle(cycle) {
+  if (!['monthly', 'annual'].includes(cycle)) return;
+  state.billingCycle = cycle;
+  render();
+  $('[data-billing-cycle="' + cycle + '"]')?.focus();
+}
+
+function renderSubscriptions() {
+  const active = normalizeSubscription(state.subscription);
+  const activePlan = SUBSCRIPTION_PLANS.find((plan) => plan.id === active?.plan);
+  return '<section class="subscription-section" id="plans" aria-labelledby="plans-title"><div class="subscription-heading"><p class="eyebrow">HOTELX ДЛЯ БИЗНЕСА</p><h2 id="plans-title">Ваш отель растёт. HotelX рядом.</h2><p class="muted">Выберите подходящий масштаб работы — от первого отеля до сети.</p><span class="badge badge-warning">Демо-подписки · без списаний</span></div>' +
+    '<div class="billing-switch" role="group" aria-label="Период подписки"><button class="btn' + (state.billingCycle === 'monthly' ? ' btn-primary' : '') + '" data-billing-cycle="monthly" aria-pressed="' + (state.billingCycle === 'monthly') + '">Месяц</button><button class="btn' + (state.billingCycle === 'annual' ? ' btn-primary' : '') + '" data-billing-cycle="annual" aria-pressed="' + (state.billingCycle === 'annual') + '">Год <span class="billing-saving">−20%</span></button></div>' +
+    (activePlan ? '<div class="subscription-current" role="status"><div><strong>Демо-план: ' + activePlan.name + '</strong><p>' + (active.cycle === 'annual' ? 'Годовой' : 'Месячный') + ' период · ' + money(subscriptionQuote(activePlan, active.cycle).total) + ' условно за период. Списаний и автопродления нет.</p></div><button class="btn btn-sm" data-action="cancel-subscription">Отменить демо-подписку</button></div>' : '') +
+    '<div class="subscription-grid">' + SUBSCRIPTION_PLANS.map((plan) => {
+      const quote = subscriptionQuote(plan, state.billingCycle);
+      const selected = active?.plan === plan.id && active?.cycle === state.billingCycle;
+      return '<article class="card subscription-card' + (plan.id === 'pro' ? ' subscription-featured' : '') + '"><div class="subscription-card-top"><span class="report-icon">' + icon(plan.id === 'starter' ? 'building' : plan.id === 'pro' ? 'spark' : 'briefcase') + '</span>' + (plan.id === 'pro' ? '<span class="badge badge-brand">Выбор команды</span>' : '') + '</div><h3>' + plan.name + '</h3><p class="muted subscription-description">' + plan.description + '</p><div class="subscription-price"><strong>' + money(quote.monthly) + '</strong><span> / мес.</span></div><p class="subscription-total">' + (state.billingCycle === 'annual' ? money(quote.total) + ' за год · экономия ' + money(quote.saving) : money(quote.total) + ' за месяц · без обязательств') + '</p><button class="btn ' + (plan.id === 'pro' ? 'btn-primary' : '') + '" data-subscription-plan="' + plan.id + '" ' + (selected ? 'disabled' : '') + '>' + (selected ? 'Текущий демо-план' : 'Попробовать ' + plan.name) + '</button><ul class="subscription-features">' + plan.features.map((feature) => '<li>' + icon('check') + '<span>' + feature + '</span></li>').join('') + '</ul></article>';
+    }).join('') + '</div><p class="subscription-disclaimer">Цены и лимиты условные. Выбор сохраняется только в этом браузере для демо-отеля Aspan City Hotel. Карта не нужна, оплаты и автопродления нет. Тариф не изменяет доступ к функциям: все демовозможности остаются доступны в рамках вашей роли.</p></section>';
+}
+
+function openSubscriptionConfirmation(id) {
+  const plan = SUBSCRIPTION_PLANS.find((item) => item.id === id);
+  if (!plan) return;
+  state.pendingSubscription = { plan: id, cycle: state.billingCycle };
+  const quote = subscriptionQuote(plan, state.billingCycle);
+  showModal('<div class="modal-head"><div><p class="eyebrow">ДЕМО-ПОДПИСКА</p><h2>Попробовать ' + plan.name + '?</h2><p>Проверьте выбранный период перед подтверждением.</p></div><button class="btn btn-icon btn-ghost" data-action="close-modal" aria-label="Закрыть">' + icon('close') + '</button></div><div class="detail-list"><div class="detail-item"><span>Период</span><strong>' + (state.billingCycle === 'annual' ? '12 месяцев' : '1 месяц') + '</strong></div><div class="detail-item"><span>Условная стоимость</span><strong>' + money(quote.total) + '</strong></div><div class="detail-item"><span>К оплате сейчас</span><strong>0 ₸</strong></div></div><p class="subscription-disclaimer">Это демонстрация. Деньги не списываются, платёжные данные не запрашиваются. Предыдущий демо-план будет заменён после подтверждения.</p><div class="modal-actions"><button class="btn" data-action="close-modal">Назад</button><button class="btn btn-primary" data-action="confirm-subscription">Подтвердить демо-план</button></div>');
+}
+
+function saveDemoSubscription(value) {
+  try { persistLocal('demo-subscription:aspan-city', value); }
+  catch { toast('Не удалось сохранить', 'Разрешите локальное хранилище браузера и повторите выбор.', 'error'); return false; }
+  state.subscription = value;
+  closeModal();
+  render();
+  return true;
+}
+
+function confirmSubscription() {
+  const pending = normalizeSubscription(state.pendingSubscription);
+  if (pending && saveDemoSubscription(pending)) toast('Демо-подписка выбрана', 'План сохранён в этом браузере. Списаний нет.', 'success');
+}
+
+function openSubscriptionCancellation() {
+  if (!state.subscription) return;
+  state.pendingSubscription = null;
+  showModal('<div class="modal-head"><div><h2>Отменить демо-подписку?</h2><p>Выбор тарифа будет сброшен только в этом браузере. Все демофункции останутся доступны.</p></div><button class="btn btn-icon btn-ghost" data-action="close-modal" aria-label="Закрыть">' + icon('close') + '</button></div><div class="modal-actions"><button class="btn" data-action="close-modal">Оставить план</button><button class="btn btn-danger" data-action="confirm-cancel-subscription">Отменить демо-подписку</button></div>');
+}
+
+function cancelSubscription() {
+  if (state.subscription && saveDemoSubscription(null)) toast('Демо-подписка отменена', 'Сохранённый выбор сброшен. Списаний не было.', 'success');
+}
+
 function landingSections() {
   return '<section class="landing-platform"><div class="section-head"><div><p class="eyebrow">HOTELX PLATFORM</p><h2>Один рабочий контур для отеля и гостя</h2><p>Публичный каталог и приватная аналитика разделены ролями и серверными разрешениями.</p></div><span class="badge badge-warning">MVP · Demo data</span></div><div class="platform-grid"><article class="card"><div class="report-icon">' + icon('chart') + '</div><h3>Для владельца</h3><p class="muted">Загрузка, ADR, RevPAR, прогноз спроса и рекомендации по ценам с подтверждением перед применением.</p><button class="btn btn-sm" data-route="/hotel/dashboard">Открыть dashboard</button></article><article class="card"><div class="report-icon">' + icon('search') + '</div><h3>Для путешественника</h3><p class="muted">Диалог о поездке, подбор по демо-каталогу, сравнение, избранное и прозрачная демо-бронь.</p><button class="btn btn-sm btn-primary" data-route="/app/explore">Найти отель</button></article><article class="card"><div class="report-icon">' + icon('shield') + '</div><h3>Безопасность по умолчанию</h3><p class="muted">Guest не видит revenue и owner API. Доступ к отелю выдаётся только после серверной верификации.</p><button class="btn btn-sm" data-route="/register?intent=manager">Подключить отель</button></article></div></section>' +
     '<section class="landing-how"><div><p class="eyebrow">КАК ЭТО РАБОТАЕТ</p><h2>От запроса до решения за несколько шагов</h2></div><div class="how-grid"><div><span>01</span><strong>Опишите поездку</strong><p>Город, бюджет, даты и удобства обычными словами.</p></div><div><span>02</span><strong>Сравните варианты</strong><p>AI объясняет совпадение и показывает компромиссы.</p></div><div><span>03</span><strong>Примите решение</strong><p>Гость бронирует демо-вариант, владелец подтверждает изменения цены.</p></div></div></section>' +
-    '<section class="landing-faq"><div><p class="eyebrow">FAQ</p><h2>Прозрачный MVP</h2></div><div class="faq-list"><details><summary>Это реальные цены и наличие?</summary><p>Нет. Публичный каталог явно помечен как демо до подключения PMS или channel manager.</p></details><details><summary>AI сам меняет цену?</summary><p>Нет. Рекомендация показывает объяснение и ждёт подтверждения владельца.</p></details><details><summary>Есть ли настоящий 360°-тур?</summary><p>Пока нет. В карточке доступен фото-тур с явной пометкой demo; панорамы можно подключить позже.</p></details></div></section><footer class="landing-footer"><span>© 2026 HotelX</span><span>Казахстан · KZT · Русский по умолчанию</span><button class="link" data-route="/login">Войти</button></footer>';
+    renderSubscriptions() + '<section class="landing-faq"><div><p class="eyebrow">FAQ</p><h2>Прозрачный MVP</h2></div><div class="faq-list"><details><summary>Это реальные цены и наличие?</summary><p>Нет. Публичный каталог явно помечен как демо до подключения PMS или channel manager.</p></details><details><summary>AI сам меняет цену?</summary><p>Нет. Рекомендация показывает объяснение и ждёт подтверждения владельца.</p></details><details><summary>Есть ли настоящий 360°-тур?</summary><p>Пока нет. В карточке доступен фото-тур с явной пометкой demo; панорамы можно подключить позже.</p></details></div></section><footer class="landing-footer"><span>© 2026 HotelX</span><span>Казахстан · KZT · Русский по умолчанию</span><button class="link" data-route="/login">Войти</button></footer>';
 }
 
 function renderLanding(viewClass = '') {
-  return '<div class="landing' + viewClass + '"><nav class="landing-nav">' + brand() + '<div class="landing-links"><a href="#how">Как работает</a><button class="btn-ghost" data-route="/app/explore">Для путешественников</button><button class="btn-ghost" data-route="/hotel/dashboard">Для отелей</button></div><div class="row"><button class="btn btn-ghost" data-route="/login">Войти</button><button class="btn btn-primary" data-route="/app/explore">Открыть HotelX</button></div></nav>' +
+  return '<div class="landing' + viewClass + '"><nav class="landing-nav">' + brand() + '<div class="landing-links"><a href="#how">Как работает</a><a href="#plans">Тарифы</a><button class="btn-ghost" data-route="/app/explore">Для путешественников</button><button class="btn-ghost" data-route="/hotel/dashboard">Для отелей</button></div><div class="row"><button class="btn btn-ghost" data-route="/login">Войти</button><button class="btn btn-primary" data-route="/app/explore">Открыть HotelX</button></div></nav>' +
     '<main><section class="landing-hero"><div class="landing-copy"><p class="eyebrow">Одна AI-платформа · две стороны рынка</p><h1>Нужный отель. <span>Верное решение.</span></h1><p>HotelX помогает гостям находить идеальное размещение, а отелям — прогнозировать спрос, управлять ценой и увеличивать выручку.</p><div class="hero-actions"><button class="btn btn-primary" data-route="/app/explore">' + icon('search') + ' Найти отель</button><button class="btn" data-route="/register?intent=manager">' + icon('building') + ' Подключить отель</button></div><div class="trust-row"><span>Объяснимый AI Match</span><span>Защищённые роли</span><span>Цены в тенге</span></div></div>' +
     '<div class="hero-visual" aria-label="Современный отель"><div class="hero-match"><div class="match-ring"><span>94%</span></div><div><div class="ai-label" style="margin-bottom:4px">✦ Лучшее совпадение</div><h3>Aspan City Hotel</h3><p>Рядом с центром · завтрак включён · в рамках бюджета</p></div><button class="btn btn-sm btn-primary" data-route="/app/hotel/aspan-city">Подробнее</button></div></div></section>' +
     '<section class="value-strip" id="how"><div class="value-grid"><div class="value-item"><span class="value-number">01</span><div><h3>Спрос обычными словами</h3><p>Напишите пожелания — демопомощник подберёт отели и запомнит уточнения в диалоге.</p></div></div><div class="value-item"><span class="value-number">02</span><div><h3>Выбор с объяснением</h3><p>Сравните варианты и поймите, почему HotelX рекомендует именно этот отель.</p></div></div><div class="value-item"><span class="value-number">03</span><div><h3>Управление на данных</h3><p>Отель получает прогноз спроса и проверяемые рекомендации по цене.</p></div></div></div></section>' + landingSections() + '</main></div>';
@@ -707,6 +780,7 @@ function render() {
   }
 
   if (state.path === '/') app.innerHTML = renderLanding(viewClass);
+  else if (state.path === '/plans') app.innerHTML = guestShell(renderSubscriptions(), viewClass);
   else if (state.path === '/login') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderLogin(viewClass);
   else if (state.path === '/register') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderRegister(viewClass);
   else if (state.path.startsWith('/app/')) {
@@ -741,6 +815,7 @@ function render() {
     else if (state.path === '/hotel/reports') content = renderReports();
     else if (state.path === '/hotel/staff') content = renderStaff();
     else if (state.path === '/hotel/integrations') content = renderIntegrations();
+    else if (state.path === '/hotel/subscription') content = renderSubscriptions();
     else if (state.path === '/hotel/settings') content = renderHotelSettings();
     else if (state.path === '/hotel/verification') content = renderVerificationCenter();
     else content = notFound();
@@ -1040,13 +1115,20 @@ document.addEventListener('click', async (event) => {
   if (retryChat) { const kind = retryChat.dataset.retryAssistant; const messages = kind === 'guest' ? state.aiMessages : state.hotelAiMessages; const prompt = messages[messages.length - 2]?.text; if (prompt) await sendAssistant(kind, prompt, { retry: true }); return; }
   const intent = event.target.closest('[data-intent]');
   if (intent) { state.intent = intent.dataset.intent; render(); return; }
+  const billing = event.target.closest('[data-billing-cycle]');
+  if (billing) { setBillingCycle(billing.dataset.billingCycle); return; }
+  const plan = event.target.closest('[data-subscription-plan]');
+  if (plan) { openSubscriptionConfirmation(plan.dataset.subscriptionPlan); return; }
   const action = event.target.closest('[data-action]');
   if (!action) {
     if (state.contextMenu && !event.target.closest('.context-popover')) { state.contextMenu = false; render(); }
     return;
   }
   const name = action.dataset.action;
-  if (name === 'toggle-context') { state.contextMenu = !state.contextMenu; render(); }
+  if (name === 'confirm-subscription') confirmSubscription();
+  else if (name === 'cancel-subscription') openSubscriptionCancellation();
+  else if (name === 'confirm-cancel-subscription') cancelSubscription();
+  else if (name === 'toggle-context') { state.contextMenu = !state.contextMenu; render(); }
   else if (name === 'open-sidebar') document.body.classList.add('sidebar-open');
   else if (name === 'close-modal') { if (!event.target.closest('[data-modal-panel]') || event.target.closest('button')) closeModal(); }
   else if (name === 'retry') hydrateRoute().catch(handleLoadError);
@@ -1103,6 +1185,8 @@ async function init() {
   try {
     const me = await api('/api/me');
     state.me = me;
+    state.subscription = normalizeSubscription(loadLocal(deviceKey('demo-subscription:aspan-city'), null));
+    if (state.subscription) state.billingCycle = state.subscription.cycle;
     state.compare = loadLocal(deviceKey('compare'), []);
     state.favorites = loadLocal(deviceKey('favorites'), ['aspan-city']);
     state.recommendationApplied = loadLocal(deviceKey('recommendation-applied'), false);

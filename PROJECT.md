@@ -47,3 +47,7 @@ The local preview is served at `http://127.0.0.1:4173`. `npm test` builds first,
 ## Vercel public demo target
 
 `npm run build:vercel` produces `public/` and the ignored generated Worker module consumed by `api/entry.js`. `vercel.json` provides rewrites and strict security headers. This target injects a fixed public fixture identity, exposes personal/business demo contexts only, and rejects all writes except conversational search and comparisons. It has no D1/R2 binding or external secrets. The original Sites build and authentication checks remain unchanged. Generic frontend support displays a public-demo banner only when `/api/me` returns `publicDemo: true`. See README.md for deployment settings and limitations.
+
+## Illustrative SaaS subscriptions
+
+`/plans`, the landing page and `/hotel/subscription` show Starter, Pro and Enterprise plans in KZT. Annual billing applies an illustrative 20% discount and displays the entire annual amount. Selection, switching and cancellation require confirmation and persist only in namespaced browser localStorage for the fixture hotel. Prices, quotas and plan benefits are conceptual; there is no payment, automatic renewal, server subscription, or entitlement enforcement. No private API routes or permissions change. The hotel navigation entry uses MANAGE_SETTINGS. `scripts/subscription-test.mjs` checks quotes, rendering, confirmation, cancellation, invalid persisted values and unavailable browser storage.

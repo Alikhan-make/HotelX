@@ -651,3 +651,29 @@ tbody tr:hover { background: #fafbfc; }
 body:has(.public-demo-banner) .sidebar { top: 90px; }
 .demo-entry { max-width: 760px; margin: 40px auto; }
 @media (min-width: 1100px) { body:has(.public-demo-banner) .sidebar { top: 62px; } }
+
+/* Illustrative SaaS subscriptions */
+.subscription-section { padding: 46px 0; scroll-margin-top: 30px; }
+.landing .subscription-section { max-width: 1200px; margin: auto; padding: 64px 24px; }
+.subscription-heading { text-align: center; max-width: 700px; margin: 0 auto 24px; }
+.subscription-heading h2 { font-size: clamp(26px, 3vw, 38px); letter-spacing: -.04em; margin-bottom: 12px; }
+.billing-switch { display: flex; justify-content: center; gap: 6px; margin-bottom: 28px; }
+.billing-saving { font-size: 11px; border-radius: 6px; padding: 3px 6px; background: var(--mint-soft); color: #087354; }
+.subscription-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.subscription-card { display: flex; flex-direction: column; padding: 26px; }
+.subscription-featured { border: 2px solid var(--brand); box-shadow: 0 12px 32px rgba(49,94,251,.1); }
+.subscription-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; gap: 8px; }
+.subscription-card-top .report-icon { margin: 0; }
+.subscription-card h3 { font-size: 24px; margin-bottom: 10px; }
+.subscription-description { font-size: 14px; line-height: 1.65; min-height: 70px; }
+.subscription-price strong { font-size: clamp(25px, 2.8vw, 34px); letter-spacing: -.045em; white-space: nowrap; }
+.subscription-price > span { color: var(--muted); font-size: 13px; }
+.subscription-total { font-size: 12px; color: var(--muted); min-height: 38px; line-height: 1.6; margin: 8px 0 20px; }
+.subscription-features { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 14px; }
+.subscription-features li { display: flex; gap: 10px; font-size: 13px; line-height: 1.6; }
+.subscription-features .icon { color: var(--mint); margin-top: 1px; }
+.subscription-disclaimer { font-size: 12px; line-height: 1.8; color: var(--muted); max-width: 850px; margin: 24px auto 0; }
+.subscription-current { display: flex; justify-content: space-between; align-items: center; gap: 18px; background: var(--brand-soft); border: 1px solid #d7dfff; padding: 20px; border-radius: 16px; margin-bottom: 24px; }
+.subscription-current p { font-size: 13px; line-height: 1.7; color: var(--muted); margin: 6px 0 0; }
+@media (max-width: 1000px) { .subscription-grid { gap: 12px; } .subscription-card { padding: 18px; } }
+@media (max-width: 760px) { .subscription-grid { grid-template-columns: 1fr; } .subscription-description, .subscription-total { min-height: 0; } .subscription-current { align-items: stretch; flex-direction: column; } .subscription-card { padding: 24px; } .subscription-price strong { font-size: 34px; } }
