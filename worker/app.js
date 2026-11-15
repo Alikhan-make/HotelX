@@ -707,8 +707,8 @@ function render() {
   }
 
   if (state.path === '/') app.innerHTML = renderLanding(viewClass);
-  else if (state.path === '/login') app.innerHTML = renderLogin(viewClass);
-  else if (state.path === '/register') app.innerHTML = renderRegister(viewClass);
+  else if (state.path === '/login') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderLogin(viewClass);
+  else if (state.path === '/register') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderRegister(viewClass);
   else if (state.path.startsWith('/app/')) {
     let content = '';
     if (state.error) content = errorBlock();
@@ -758,8 +758,18 @@ function render() {
     else content = notFound();
     app.innerHTML = workspaceShell(content, true, viewClass);
   } else app.innerHTML = renderLanding(viewClass);
+  if (state.me.publicDemo) {
+    const banner = document.createElement('aside');
+    banner.className = 'public-demo-banner';
+    banner.innerHTML = '<strong>HotelX · открытая демоверсия</strong><span>Учебные данные. Брони, цены и настройки не сохраняются.</span><div><button class="btn btn-sm" data-route="/app/ai">Гость · помощник</button><button class="btn btn-sm" data-route="/hotel/ai">Владелец · помощник</button></div>';
+    app.prepend(banner);
+  }
   bindForms();
   setupMotion();
+}
+
+function renderDemoEntry() {
+  return '<main class="card demo-entry"><h1>Попробуйте HotelX</h1><p>Вход и регистрация в демоверсии не нужны. Выберите интерфейс для знакомства с учебными данными.</p><div class="row wrap"><button class="btn btn-ai" data-route="/app/ai">Помощник путешественника</button><button class="btn" data-route="/hotel/ai">Помощник владельца</button></div></main>';
 }
 
 function notFound() {

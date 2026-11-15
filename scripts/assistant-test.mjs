@@ -75,8 +75,10 @@ assert.match(metrics.data.reply, /32 838/);
 
 const source = await readFile(new URL("../worker/app.js", import.meta.url), "utf8");
 const context = { window: { matchMedia: () => ({ matches: true }), addEventListener() {} }, document: { addEventListener() {} }, location: { pathname: "/app/ai", search: "" }, URLSearchParams, Intl };
-runInNewContext(source.replace(/\ninit\(\);\s*$/, "") + "\nglobalThis.qa = { state, renderGuestAi, renderHotelAi, renderExplore, renderSearchResults, resetAssistant };", context);
+runInNewContext(source.replace(/\ninit\(\);\s*$/, "") + "\nglobalThis.qa = { state, renderGuestAi, renderHotelAi, renderExplore, renderSearchResults, renderDemoEntry, resetAssistant };", context);
 const qa = context.qa;
+assert.match(qa.renderDemoEntry(), /Вход и регистрация в демоверсии не нужны/);
+assert.doesNotMatch(qa.renderDemoEntry(), /signin-with-chatgpt/);
 qa.state.hotels = first.data.hotels;
 for (const html of [qa.renderExplore(), qa.renderSearchResults()]) {
   assert.doesNotMatch(html, /classic-city|city-filter|open-filters|name="budget"|data-amenity|sort-hotels/);

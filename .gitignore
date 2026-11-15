@@ -2,3 +2,10 @@ dist/
 outputs/
 .wrangler/
 .sites-runtime/
+
+public/
+vercel/worker.generated.js
+.vercel/
+.env
+.env.*
+!.env.example
