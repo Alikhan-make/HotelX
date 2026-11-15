@@ -98,6 +98,19 @@ if (price.status !== 200) throw new Error("Price override failed");
 const dashboard = await call("/api/hotels/aspan-city/dashboard", { context: "business" });
 if (!dashboard.payload.dashboard.recommendation.applied) throw new Error("Applied price was not persisted");
 
+const assistantPrice = await call("/api/hotels/aspan-city/assistant", { context: "business", method: "POST", body: JSON.stringify({ prompt: "Повысить Standard на 10%" }) });
+if (assistantPrice.status !== 200 || !assistantPrice.payload.reply.includes("48 400")) throw new Error("Demo assistant ignored the persisted 44,000 price override");
+database.prepare("INSERT INTO users (id, email, name) VALUES ('limited-user', 'limited@example.com', 'Limited')").run();
+database.prepare("INSERT INTO hotel_memberships (user_id, hotel_id, role, status) VALUES ('limited-user', 'aspan-city', 'HOTEL_STAFF', 'ACTIVE')").run();
+database.prepare("INSERT INTO membership_permissions (user_id, hotel_id, permission, allowed) VALUES ('limited-user', 'aspan-city', 'VIEW_DASHBOARD', 1)").run();
+const limited = { context: "business", method: "POST", userId: "limited-user", email: "limited@example.com" };
+for (const prompt of ["Нужно ли поднять цены?", "Прогноз загрузки на 30 дней"]) {
+  const response = await call("/api/hotels/aspan-city/assistant", { ...limited, body: JSON.stringify({ prompt }) });
+  if (response.status !== 403) throw new Error("Assistant bypassed topic permissions for " + prompt);
+}
+const help = await call("/api/hotels/aspan-city/assistant", { ...limited, body: JSON.stringify({ prompt: "Что ты умеешь?" }) });
+if (help.status !== 200) throw new Error("Dashboard-permitted staff could not access assistant help");
+
 const auditCount = database.prepare("SELECT count(*) AS count FROM audit_events").get().count;
 if (auditCount < 4) throw new Error("Audit trail is incomplete");
 

@@ -2,7 +2,7 @@
 
 HotelX is a Kazakhstan-focused hospitality platform with two server-protected contexts:
 
-- Guest: nationwide demo catalogue, AI search, filters, compare, favorites, demo bookings and trips.
+- Guest: nationwide demo catalogue, conversational demo search, compare, favorites, demo bookings and trips. Manual search criteria and filters have been removed from the guest UI.
 - Hotel owner: dashboard, reservations, rooms, pricing, forecast, recommendations, reports and verification.
 - Platform admin: owner verification queue, document access and platform controls.
 
@@ -15,6 +15,16 @@ The project is a Cloudflare Worker ESM application with vanilla browser JavaScri
 The public hotel catalogue is intentionally marked `catalogScope: "demo"` and every catalogue hotel has `demo: true`. Unsplash images, ratings, availability, owner analytics, forecasts and payment screens are presentation/demo data unless a route explicitly persists through D1. No external PMS, channel manager, payment gateway, map provider or 360° panorama source is connected.
 
 Server-side context and permission checks remain authoritative. Guest requests cannot access hotel or admin APIs; hotel data is scoped by membership and permission.
+
+## Demo assistants
+
+Both `/app/ai` and `/hotel/ai` are explicitly labelled offline demonstrations, with no OpenAI API key, language model, or external AI service. `worker/demo-assistant.js` uses deterministic intent parsing and computations from the existing demo catalogue and hotel snapshots. It is bundled into the single Worker by `scripts/build.mjs`.
+
+The guest assistant remembers city, nightly budget, amenities/exclusions, central location, party size and duration across up to 40 user turns. It returns matching hotel cards, comparisons and estimates, preserving constraints when no hotels match. Exploration and results use the same conversation; a new dialogue clears its state. Unknown topics get a limitation message. History lives in page memory until refresh and is not persisted.
+
+The hotel assistant calculates 7/30/90-day demo forecast summaries, explains demo KPIs, compares room categories and calculates percentage price scenarios. It reads persisted Standard King price overrides and never applies changes from chat. Existing confirmation flows remain required. Business context, hotel membership and topic-specific permissions are checked server-side on every assistant request.
+
+`scripts/assistant-test.mjs` checks multi-turn matching, comparisons, calculations, invalid input, role isolation and guest UI rendering. D1 tests verify persisted price awareness and restricted staff permissions.
 
 ## Local development
 

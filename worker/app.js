@@ -97,8 +97,12 @@ const state = {
   bookingDraft: null,
   latestBooking: null,
   myVerification: null,
-  aiMessages: [{ from: 'ai', text: 'Здравствуйте! Я AI-помощник HotelX. Расскажите, какой отель вы ищете — учту бюджет, локацию и ваши предпочтения.' }],
-  hotelAiMessages: [{ from: 'ai', text: 'Данные Aspan City Hotel обновлены. На выходные спрос растёт быстрее прогноза. Могу объяснить причины или предложить действие.' }]
+  aiMessages: [{ from: 'ai', text: 'Здравствуйте! Помогу подобрать отель из демо-каталога. Напишите город и пожелания, затем уточняйте их в диалоге — например: «А теперь дешевле».', suggestions: ['Алматы до 60 тысяч с завтраком', 'Астана с бассейном', 'Отель рядом с центром до 50 000 ₸'] }],
+  hotelAiMessages: [{ from: 'ai', text: 'Здравствуйте! Разберём демоданные Aspan City Hotel: загрузку, категории и цены. Можно продолжать вопросами «А на 30 дней?» или «А если повысить на 5%?».', suggestions: ['Какая загрузка на 7 дней?', 'Какие категории продаются хуже?', 'Покажи выручку и RevPAR'] }],
+  assistantBusy: { guest: false, hotel: false },
+  assistantVersion: { guest: 0, hotel: 0 },
+  searchSummary: '',
+  searchPrompt: ''
 };
 
 let lastAnimatedPath = null;
@@ -411,7 +415,7 @@ function hotelCard(hotel) {
 }
 
 function landingSections() {
-  return '<section class="landing-platform"><div class="section-head"><div><p class="eyebrow">HOTELX PLATFORM</p><h2>Один рабочий контур для отеля и гостя</h2><p>Публичный каталог и приватная аналитика разделены ролями и серверными разрешениями.</p></div><span class="badge badge-warning">MVP · Demo data</span></div><div class="platform-grid"><article class="card"><div class="report-icon">' + icon('chart') + '</div><h3>Для владельца</h3><p class="muted">Загрузка, ADR, RevPAR, прогноз спроса и рекомендации по ценам с подтверждением перед применением.</p><button class="btn btn-sm" data-route="/hotel/dashboard">Открыть dashboard</button></article><article class="card"><div class="report-icon">' + icon('search') + '</div><h3>Для путешественника</h3><p class="muted">Поиск по городам Казахстана, AI-фильтры, сравнение, избранное и прозрачная демо-бронь.</p><button class="btn btn-sm btn-primary" data-route="/app/explore">Найти отель</button></article><article class="card"><div class="report-icon">' + icon('shield') + '</div><h3>Безопасность по умолчанию</h3><p class="muted">Guest не видит revenue и owner API. Доступ к отелю выдаётся только после серверной верификации.</p><button class="btn btn-sm" data-route="/register?intent=manager">Подключить отель</button></article></div></section>' +
+  return '<section class="landing-platform"><div class="section-head"><div><p class="eyebrow">HOTELX PLATFORM</p><h2>Один рабочий контур для отеля и гостя</h2><p>Публичный каталог и приватная аналитика разделены ролями и серверными разрешениями.</p></div><span class="badge badge-warning">MVP · Demo data</span></div><div class="platform-grid"><article class="card"><div class="report-icon">' + icon('chart') + '</div><h3>Для владельца</h3><p class="muted">Загрузка, ADR, RevPAR, прогноз спроса и рекомендации по ценам с подтверждением перед применением.</p><button class="btn btn-sm" data-route="/hotel/dashboard">Открыть dashboard</button></article><article class="card"><div class="report-icon">' + icon('search') + '</div><h3>Для путешественника</h3><p class="muted">Диалог о поездке, подбор по демо-каталогу, сравнение, избранное и прозрачная демо-бронь.</p><button class="btn btn-sm btn-primary" data-route="/app/explore">Найти отель</button></article><article class="card"><div class="report-icon">' + icon('shield') + '</div><h3>Безопасность по умолчанию</h3><p class="muted">Guest не видит revenue и owner API. Доступ к отелю выдаётся только после серверной верификации.</p><button class="btn btn-sm" data-route="/register?intent=manager">Подключить отель</button></article></div></section>' +
     '<section class="landing-how"><div><p class="eyebrow">КАК ЭТО РАБОТАЕТ</p><h2>От запроса до решения за несколько шагов</h2></div><div class="how-grid"><div><span>01</span><strong>Опишите поездку</strong><p>Город, бюджет, даты и удобства обычными словами.</p></div><div><span>02</span><strong>Сравните варианты</strong><p>AI объясняет совпадение и показывает компромиссы.</p></div><div><span>03</span><strong>Примите решение</strong><p>Гость бронирует демо-вариант, владелец подтверждает изменения цены.</p></div></div></section>' +
     '<section class="landing-faq"><div><p class="eyebrow">FAQ</p><h2>Прозрачный MVP</h2></div><div class="faq-list"><details><summary>Это реальные цены и наличие?</summary><p>Нет. Публичный каталог явно помечен как демо до подключения PMS или channel manager.</p></details><details><summary>AI сам меняет цену?</summary><p>Нет. Рекомендация показывает объяснение и ждёт подтверждения владельца.</p></details><details><summary>Есть ли настоящий 360°-тур?</summary><p>Пока нет. В карточке доступен фото-тур с явной пометкой demo; панорамы можно подключить позже.</p></details></div></section><footer class="landing-footer"><span>© 2026 HotelX</span><span>Казахстан · KZT · Русский по умолчанию</span><button class="link" data-route="/login">Войти</button></footer>';
 }
@@ -420,29 +424,25 @@ function renderLanding(viewClass = '') {
   return '<div class="landing' + viewClass + '"><nav class="landing-nav">' + brand() + '<div class="landing-links"><a href="#how">Как работает</a><button class="btn-ghost" data-route="/app/explore">Для путешественников</button><button class="btn-ghost" data-route="/hotel/dashboard">Для отелей</button></div><div class="row"><button class="btn btn-ghost" data-route="/login">Войти</button><button class="btn btn-primary" data-route="/app/explore">Открыть HotelX</button></div></nav>' +
     '<main><section class="landing-hero"><div class="landing-copy"><p class="eyebrow">Одна AI-платформа · две стороны рынка</p><h1>Нужный отель. <span>Верное решение.</span></h1><p>HotelX помогает гостям находить идеальное размещение, а отелям — прогнозировать спрос, управлять ценой и увеличивать выручку.</p><div class="hero-actions"><button class="btn btn-primary" data-route="/app/explore">' + icon('search') + ' Найти отель</button><button class="btn" data-route="/register?intent=manager">' + icon('building') + ' Подключить отель</button></div><div class="trust-row"><span>Объяснимый AI Match</span><span>Защищённые роли</span><span>Цены в тенге</span></div></div>' +
     '<div class="hero-visual" aria-label="Современный отель"><div class="hero-match"><div class="match-ring"><span>94%</span></div><div><div class="ai-label" style="margin-bottom:4px">✦ Лучшее совпадение</div><h3>Aspan City Hotel</h3><p>Рядом с центром · завтрак включён · в рамках бюджета</p></div><button class="btn btn-sm btn-primary" data-route="/app/hotel/aspan-city">Подробнее</button></div></div></section>' +
-    '<section class="value-strip" id="how"><div class="value-grid"><div class="value-item"><span class="value-number">01</span><div><h3>Спрос обычными словами</h3><p>Напишите пожелания — AI превратит их в даты, бюджет, локацию и фильтры.</p></div></div><div class="value-item"><span class="value-number">02</span><div><h3>Выбор с объяснением</h3><p>Сравните варианты и поймите, почему HotelX рекомендует именно этот отель.</p></div></div><div class="value-item"><span class="value-number">03</span><div><h3>Управление на данных</h3><p>Отель получает прогноз спроса и проверяемые рекомендации по цене.</p></div></div></div></section>' + landingSections() + '</main></div>';
+    '<section class="value-strip" id="how"><div class="value-grid"><div class="value-item"><span class="value-number">01</span><div><h3>Спрос обычными словами</h3><p>Напишите пожелания — демопомощник подберёт отели и запомнит уточнения в диалоге.</p></div></div><div class="value-item"><span class="value-number">02</span><div><h3>Выбор с объяснением</h3><p>Сравните варианты и поймите, почему HotelX рекомендует именно этот отель.</p></div></div><div class="value-item"><span class="value-number">03</span><div><h3>Управление на данных</h3><p>Отель получает прогноз спроса и проверяемые рекомендации по цене.</p></div></div></div></section>' + landingSections() + '</main></div>';
 }
 
 function renderExplore() {
   const hotels = state.hotels || [];
-  return '<section class="explore-hero"><div class="explore-content"><p class="eyebrow" style="color:#bfcaff">AI SEARCH · KAZAKHSTAN</p><h1>Откройте Казахстан с AI.</h1><p>Опишите город, бюджет и пожелания — HotelX подберёт варианты по всей стране.</p><form class="ai-search" id="ai-search-form"><span class="ai-orb">✦</span><input id="ai-search-input" aria-label="AI-запрос" value="Найди отель в Алматы до 60 000 ₸ с завтраком" placeholder="Например: отель в Актау с бассейном до 60 000 ₸"><button class="btn btn-ai" type="submit">Найти с AI ' + icon('arrow') + '</button></form></div></section>' +
-    '<div class="classic-search"><div class="search-cell"><label for="classic-city">Куда</label><select id="classic-city" aria-label="Город">' + cityOptions(state.filters.city) + '</select></div><div class="search-cell"><label>Заезд</label><strong>7 ноя 2026</strong></div><div class="search-cell"><label>Выезд</label><strong>10 ноя 2026</strong></div><div class="search-cell"><label>Гости</label><strong>2 гостя · 1 номер</strong></div><button class="btn btn-primary" data-action="classic-search">Поиск</button></div>' +
-    '<div class="city-strip" aria-label="Популярные города"><button class="city-chip ' + (!state.filters.city ? 'active' : '') + '" data-city="">Весь Казахстан</button>' + hotelCities().map((city) => '<button class="city-chip ' + (state.filters.city === city ? 'active' : '') + '" data-city="' + esc(city) + '">' + esc(city) + '</button>').join('') + '</div>' +
+  return '<section class="explore-hero"><div class="explore-content"><p class="eyebrow" style="color:#bfcaff">ДЕМОПОМОЩНИК · КАЗАХСТАН</p><h1>Откройте Казахстан с AI.</h1><p>Просто расскажите о поездке. Демопомощник подберёт варианты и поможет уточнить выбор в диалоге.</p><form class="ai-search" id="ai-search-form"><span class="ai-orb">✦</span><input id="ai-search-input" aria-label="AI-запрос" maxlength="2000" placeholder="Например: отель в Актау с бассейном до 60 000 ₸"><button class="btn btn-ai" type="submit">Подобрать отель ' + icon('arrow') + '</button></form></div></section>' +
     '<section class="section"><div class="section-head"><div><div class="row wrap" style="margin-bottom:8px"><span class="badge badge-warning">Демо-каталог</span><span class="text-sm muted">' + hotels.length + ' отелей · ' + hotelCities().length + ' городов</span></div><h2>Популярные отели Казахстана</h2><p>Сравните цену, расположение, удобства и отзывы гостей.</p></div><button class="link" data-action="all-hotels">Весь каталог →</button></div><div class="hotel-grid">' + hotels.slice(0, 6).map(hotelCard).join('') + '</div></section>' +
     '<section class="section ai-card"><div class="row-between wrap"><div style="max-width:700px"><div class="ai-label">✦ Как работает AI Match</div><h2 style="margin-bottom:8px">Не просто процент — понятное объяснение</h2><p class="muted" style="margin:0;line-height:1.6">HotelX сопоставляет ваш бюджет, расстояние, удобства и стиль поездки. Откройте карточку, чтобы увидеть плюсы и возможные компромиссы.</p></div><button class="btn btn-ai" data-route="/app/hotel/aspan-city">Посмотреть анализ</button></div></section>';
 }
 
 function renderSearchResults() {
   const hotels = state.searchResults || state.hotels || [];
-  const parsed = state.parsedSearch;
-  const scope = state.filters.city || (parsed?.city !== 'Казахстан' ? parsed?.city : '') || 'Казахстан';
-  const parsedHtml = parsed ? '<div class="ai-card" style="margin-bottom:18px;padding:16px 18px"><div class="row wrap"><span class="ai-label" style="margin:0">✦ AI понял запрос</span><span class="badge badge-brand">' + esc(parsed.city) + '</span><span class="badge badge-brand">3 ночи</span>' + (parsed.budget ? '<span class="badge badge-brand">до ' + money(parsed.budget) + '</span>' : '') + (parsed.amenities || []).map((item) => '<span class="badge badge-brand">' + esc(item) + '</span>').join('') + '<span class="badge badge-warning">Демо-каталог</span></div></div>' : '';
-  return '<div class="page-head"><div><p class="eyebrow">' + esc(scope) + ' · 7–10 ноября · 2 гостя</p><h1>Подходящие отели</h1><p>Найдено ' + hotels.length + ' · сначала лучшее AI-совпадение</p></div><div class="row"><button class="btn" data-action="open-filters">' + icon('filter') + ' Фильтры</button><select class="select" id="sort-hotels" style="width:auto"><option value="match">Сначала AI Match</option><option value="price">Сначала дешевле</option><option value="rating">По рейтингу</option></select></div></div>' + parsedHtml +
-    '<div class="results-layout"><aside class="card filters"><div class="row-between"><h3 style="margin:0">Фильтры</h3><button class="link" data-action="reset-filters">Сбросить</button></div><div class="filter-group"><h4>Город</h4><select class="select" id="city-filter">' + cityOptions(state.filters.city) + '</select></div><div class="filter-group"><h4>Цена за ночь</h4><label class="check"><input type="radio" name="budget" value="0" ' + (!state.filters.budget ? 'checked' : '') + '> Любая цена</label><label class="check"><input type="radio" name="budget" value="40000" ' + (state.filters.budget === 40000 ? 'checked' : '') + '> До 40 000 ₸</label><label class="check"><input type="radio" name="budget" value="50000" ' + (state.filters.budget === 50000 ? 'checked' : '') + '> До 50 000 ₸</label><label class="check"><input type="radio" name="budget" value="60000" ' + (state.filters.budget === 60000 ? 'checked' : '') + '> До 60 000 ₸</label><label class="check"><input type="radio" name="budget" value="80000" ' + (state.filters.budget === 80000 ? 'checked' : '') + '> До 80 000 ₸</label></div><div class="filter-group"><h4>Удобства</h4>' + ['Завтрак','Парковка','Бассейн','Спа','Фитнес-зал'].map((item) => '<label class="check"><input type="checkbox" data-amenity="' + item + '" ' + (state.filters.amenities.includes(item) ? 'checked' : '') + '> ' + item + '</label>').join('') + '</div></aside><div class="result-list">' + (hotels.length ? hotels.map(renderResultCard).join('') : '<div class="card empty"><div class="empty-icon">' + icon('search') + '</div><h3>Ничего не найдено</h3><p>Выберите другой город, увеличьте бюджет или уберите часть фильтров.</p><button class="btn btn-primary" data-action="reset-filters">Сбросить фильтры</button></div>') + '</div></div>';
+  return '<div class="page-head"><div><p class="eyebrow">ПОДБОР В ДИАЛОГЕ</p><h1>Подходящие отели</h1><p>' + hotels.length + ' вариант(а/ов) из демо-каталога</p></div><button class="btn btn-ai" data-route="/app/ai">' + icon('spark') + ' Продолжить диалог</button></div>' +
+    '<section class="ai-card search-conversation"><div class="row-between wrap"><div><span class="badge badge-warning">Демо · без подключения к ИИ</span><h2>Пожелания можно просто написать</h2><p class="muted">' + esc(state.searchSummary || 'Город, бюджет и удобства — своими словами, без заполнения фильтров.') + '</p></div></div><form class="ai-search" id="ai-search-form"><input id="ai-search-input" maxlength="2000" aria-label="Уточнить подбор" placeholder="Например: а теперь до 40 тысяч или в другом городе" ' + (state.assistantBusy.guest ? 'disabled' : '') + '><button class="btn btn-ai" type="submit" ' + (state.assistantBusy.guest ? 'disabled' : '') + '>' + (state.assistantBusy.guest ? 'Подбираю…' : 'Уточнить подбор') + '</button></form></section>' +
+    '<div class="result-list results-conversation">' + (hotels.length ? hotels.map(renderResultCard).join('') : '<div class="card empty"><div class="empty-icon">' + icon('search') + '</div><h3>Точных совпадений нет</h3><p>Пожелания сохранены. Напишите, что можно изменить — например, «без ограничений по бюджету».</p><button class="btn btn-primary" data-route="/app/ai">Обсудить с помощником</button></div>') + '</div>';
 }
 
 function renderResultCard(hotel) {
-  return '<article class="card result-card"><div class="hotel-image"><img src="' + hotel.image + '" alt="' + esc(hotel.name) + '"><span class="match-pill">✦ AI Match ' + hotel.match + '%</span><button class="favorite-btn ' + (state.favorites.includes(hotel.id) ? 'active' : '') + '" data-favorite="' + hotel.id + '">' + icon('heart') + '</button></div><div class="result-content"><div class="row-between"><div><div class="row wrap" style="margin-bottom:6px"><span class="badge badge-brand">' + esc(hotel.city) + '</span><span class="badge badge-warning">Демо</span></div><h3>' + esc(hotel.name) + '</h3><div class="muted text-sm">' + esc(hotel.location) + ' · ' + hotel.distance + ' км до центра</div></div><span class="rating">' + hotel.rating + '</span></div><div class="result-amenities">' + hotel.amenities.slice(0, 5).map((item) => '<span class="amenity">' + esc(item) + '</span>').join('') + '</div><p class="text-sm muted" style="line-height:1.55">' + esc(hotel.matchReason) + '</p><div class="result-bottom"><label class="compare-check"><input type="checkbox" data-compare-checkbox="' + hotel.id + '" ' + (state.compare.includes(hotel.id) ? 'checked' : '') + '> Сравнить</label><div class="row"><div class="hotel-price"><strong class="price">' + money(hotel.price) + '</strong><span>' + money(hotel.price * 3) + ' за 3 ночи</span></div><button class="btn btn-primary" data-route="/app/hotel/' + hotel.id + '">Смотреть</button></div></div></div></article>';
+  return '<article class="card result-card"><div class="hotel-image"><img src="' + hotel.image + '" alt="' + esc(hotel.name) + '"><span class="match-pill">✦ AI Match ' + hotel.match + '%</span><button class="favorite-btn ' + (state.favorites.includes(hotel.id) ? 'active' : '') + '" data-favorite="' + hotel.id + '">' + icon('heart') + '</button></div><div class="result-content"><div class="row-between"><div><div class="row wrap" style="margin-bottom:6px"><span class="badge badge-brand">' + esc(hotel.city) + '</span><span class="badge badge-warning">Демо</span></div><h3>' + esc(hotel.name) + '</h3><div class="muted text-sm">' + esc(hotel.location) + ' · ' + hotel.distance + ' км до центра</div></div><span class="rating">' + hotel.rating + '</span></div><div class="result-amenities">' + hotel.amenities.slice(0, 5).map((item) => '<span class="amenity">' + esc(item) + '</span>').join('') + '</div><p class="text-sm muted" style="line-height:1.55">' + esc(hotel.matchReason) + '</p><div class="result-bottom"><label class="compare-check"><input type="checkbox" data-compare-checkbox="' + hotel.id + '" ' + (state.compare.includes(hotel.id) ? 'checked' : '') + '> Сравнить</label><div class="row"><div class="hotel-price"><strong class="price">' + money(hotel.price) + '</strong><span>' + money(hotel.price * (state.parsedSearch?.nights || 3)) + ' за ' + (state.parsedSearch?.nights || 3) + ' ночи/ночей</span></div><button class="btn btn-primary" data-route="/app/hotel/' + hotel.id + '">Смотреть</button></div></div></div></article>';
 }
 
 function currentHotel() {
@@ -516,9 +516,26 @@ function renderFavorites() {
   return '<div class="page-head"><div><p class="eyebrow">Сохранено</p><h1>Избранные отели</h1><p>Вернитесь к вариантам, которые вам понравились.</p></div></div>' + (hotels.length ? '<div class="hotel-grid">' + hotels.map(hotelCard).join('') + '</div>' : '<div class="card empty"><div class="empty-icon">' + icon('heart') + '</div><h3>Пока пусто</h3><p>Нажимайте на сердце в карточках отелей.</p><button class="btn btn-primary" data-route="/app/explore">Найти отели</button></div>');
 }
 
-function renderGuestAi() {
-  return '<div class="page-head"><div><p class="eyebrow">AI TRAVEL ASSISTANT</p><h1>Помощник путешественника</h1><p>Прототип отвечает только по демонстрационному публичному каталогу отелей.</p></div><span class="badge badge-warning">Демо AI</span></div><div class="prompt-chips"><button class="prompt-chip" data-guest-prompt="Какой отель лучше выбрать?">Какой отель лучше?</button><button class="prompt-chip" data-guest-prompt="Найди отель рядом с центром до 50 000 ₸">Рядом с центром</button><button class="prompt-chip" data-guest-prompt="Где есть бассейн и завтрак?">Бассейн и завтрак</button></div><div class="chat-layout"><div class="messages">' + state.aiMessages.map((message) => '<div class="message ' + message.from + '">' + esc(message.text) + '</div>').join('') + '</div><form class="chat-compose" id="guest-chat-form"><input id="guest-chat-input" placeholder="Спросите о выборе отеля…"><button class="btn btn-ai" type="submit">' + icon('arrow') + '<span>Отправить</span></button></form></div>';
+function renderAssistantMessages(messages, kind) {
+  return messages.map((message, index) => '<article class="message ' + (message.from === 'user' ? 'user' : 'ai') + '"><div class="message-author">' + (message.from === 'user' ? 'Вы' : '✦ HotelX · демопомощник') + '</div><div class="message-text">' + esc(message.text) + '</div>' +
+    (message.cards?.length ? '<div class="assistant-hotels">' + message.cards.map((hotel) => '<a class="assistant-hotel" href="/app/hotel/' + esc(hotel.id) + '" data-route="/app/hotel/' + esc(hotel.id) + '"><img src="' + esc(hotel.image) + '" alt="" loading="lazy"><div><strong>' + esc(hotel.name) + '</strong><span>' + esc(hotel.city) + ' · ★ ' + hotel.rating + '</span><span>' + money(hotel.price) + ' / ночь</span></div>' + icon('arrow') + '</a>').join('') + '<button class="btn btn-sm" data-route="/app/search">Весь текущий подбор</button></div>' : '') +
+    (message.actions?.length ? '<div class="assistant-actions">' + message.actions.map((action) => '<button class="btn btn-sm" data-route="' + esc(action.route) + '">' + esc(action.label) + '</button>').join('') + '</div>' : '') +
+    (message.error && index === messages.length - 1 ? '<button class="btn btn-sm" data-retry-assistant="' + kind + '">Повторить отправку</button>' : '') + '</article>').join('');
 }
+
+function renderAssistant(kind) {
+  const guest = kind === 'guest';
+  const messages = guest ? state.aiMessages : state.hotelAiMessages;
+  const busy = state.assistantBusy[kind];
+  const suggestions = messages[messages.length - 1]?.suggestions || [];
+  return '<div class="page-head"><div><p class="eyebrow">HOTELX · ДИАЛОГ</p><h1>' + (guest ? 'Помощник путешественника' : 'AI-помощник отеля') + '</h1><p>' + (guest ? 'Расскажите о поездке — подберём и сравним отели.' : 'Разберите показатели и проверьте сценарий изменения цены.') + '</p></div><button class="btn btn-sm" data-reset-assistant="' + kind + '" ' + (busy ? 'disabled' : '') + '>' + icon('plus') + ' Новый диалог</button></div>' +
+    '<div class="assistant-demo-note"><span class="badge badge-warning">Деморежим</span><span>' + (guest ? 'Подбор по учебному каталогу. Цены и наличие демонстрационные.' : 'Расчёты по учебным данным. Реальные тарифы из чата не изменяются.') + ' Ответы формируются локальной логикой, без подключения к языковой модели.</span></div>' +
+    '<div class="chat-layout assistant-layout"><div class="messages" role="log" aria-live="polite" aria-label="История диалога">' + renderAssistantMessages(messages, kind) + (busy ? '<div class="message ai assistant-pending" role="status">' + (guest ? 'Подбираю варианты…' : 'Считаю по демоданным…') + '</div>' : '') + '</div><div class="assistant-compose-area">' +
+    '<div class="prompt-chips">' + suggestions.map((prompt) => '<button class="prompt-chip" data-' + kind + '-prompt="' + esc(prompt) + '" ' + (busy ? 'disabled' : '') + '>' + esc(prompt) + '</button>').join('') + '</div>' +
+    '<form class="chat-compose" id="' + kind + '-chat-form"><input id="' + kind + '-chat-input" aria-label="Сообщение помощнику" maxlength="2000" autocomplete="off" placeholder="' + (guest ? 'Например: Алматы, до 60 тысяч, с завтраком…' : 'Например: а если повысить цену на 5%?') + '" ' + (busy ? 'disabled' : '') + '><button class="btn btn-ai" type="submit" aria-label="Отправить сообщение" ' + (busy ? 'disabled' : '') + '>' + icon('arrow') + '<span>Отправить</span></button></form><p class="assistant-footnote">Контекст хранится в этом диалоге до обновления страницы. Новый диалог очищает историю.</p></div></div>';
+}
+
+function renderGuestAi() { return renderAssistant('guest'); }
 
 function renderProfile() {
   const user = state.me?.user || {};
@@ -571,9 +588,7 @@ function recommendationBody(rec) {
   return '<div class="row-between"><div><span class="text-xs muted">Рекомендация</span><h3 style="margin:5px 0">Повысить цену на ' + rec.change + '%</h3></div><span class="badge ' + (applied ? 'badge-success' : 'badge-ai') + '">' + (applied ? '✓ Применено' : rec.demand) + '</span></div><div class="price-change"><div class="price-box"><small>Текущая</small><strong class="price">' + money(rec.currentPrice) + '</strong></div><span class="arrow">→</span><div class="price-box"><small>Рекомендуемая</small><strong class="price">' + money(rec.recommendedPrice) + '</strong></div></div><div class="mini-stats"><div class="mini-stat"><span>Период</span><strong>' + rec.from + ' — ' + rec.to + '</strong></div><div class="mini-stat"><span>Эффект</span><strong style="color:var(--mint)">+' + money(rec.impact) + '</strong></div><div class="mini-stat"><span>Уверенность</span><strong>92%</strong></div></div><button class="btn ' + (applied ? '' : 'btn-ai') + '" style="width:100%;margin-top:16px" data-action="apply-recommendation" ' + (applied ? 'disabled' : '') + '>' + (applied ? 'Рекомендация применена' : 'Рассмотреть и применить') + '</button>';
 }
 
-function renderHotelAi() {
-  return '<div class="page-head"><div><p class="eyebrow">HOTEL AI · PRIVATE DATA</p><h1>AI-помощник отеля</h1><p>Прототип анализирует демонстрационные данные Aspan City Hotel в рамках вашего доступа.</p></div><span class="badge badge-warning">Демо AI</span></div><div class="prompt-chips"><button class="prompt-chip" data-hotel-prompt="Какая ожидаемая загрузка на следующую неделю?">Загрузка на неделю</button><button class="prompt-chip" data-hotel-prompt="Нужно ли поднять цены?">Поднять цены?</button><button class="prompt-chip" data-hotel-prompt="Какие номера продаются хуже всего?">Слабые категории</button><button class="prompt-chip" data-hotel-prompt="Почему вырос спрос?">Причина роста</button></div><div class="chat-layout"><div class="messages">' + state.hotelAiMessages.map((message) => '<div class="message ' + message.from + '">' + esc(message.text) + '</div>').join('') + '</div><form class="chat-compose" id="hotel-chat-form"><input id="hotel-chat-input" placeholder="Спросите о загрузке, выручке или ценах…"><button class="btn btn-ai" type="submit">' + icon('arrow') + '<span>Отправить</span></button></form></div>';
-}
+function renderHotelAi() { return renderAssistant('hotel'); }
 
 function renderAnalytics() {
   const data = state.dashboard;
@@ -766,61 +781,73 @@ function bindForms() {
 
 async function submitAiSearch(event) {
   event.preventDefault();
-  const input = $('#ai-search-input');
-  const prompt = input?.value.trim();
-  if (!prompt) return;
-  const button = event.currentTarget.querySelector('button');
-  button.disabled = true;
-  button.textContent = 'AI анализирует…';
+  const prompt = $('#ai-search-input')?.value.trim();
+  if (!prompt || state.assistantBusy.guest) return;
+  const path = state.path;
+  const result = await sendAssistant('guest', prompt, { reset: path === '/app/explore' });
+  if (result && state.context === 'personal' && state.path === path) navigate('/app/search');
+}
+
+function resetAssistant(kind) {
+  if (state.assistantBusy[kind]) return;
+  state.assistantVersion[kind] += 1;
+  if (kind === 'guest') {
+    state.aiMessages = [{ from: 'ai', text: 'Новый подбор! В каком городе хотите остановиться и что для вас важно?', suggestions: ['Алматы до 60 тысяч с завтраком', 'Астана с бассейном', 'Весь Казахстан'] }];
+    state.searchResults = null; state.parsedSearch = null; state.searchSummary = ''; state.searchPrompt = '';
+    state.filters = { city: '', budget: 0, amenities: [] };
+  } else state.hotelAiMessages = [{ from: 'ai', text: 'Новый диалог по демоданным Aspan City Hotel. Что разберём?', suggestions: ['Какая загрузка на 7 дней?', 'Нужно ли поднять цены?', 'Покажи выручку и RevPAR'] }];
+}
+
+async function sendAssistant(kind, prompt, { reset = false, retry = false } = {}) {
+  if (state.assistantBusy[kind] || !prompt.trim()) return null;
+  if (reset) resetAssistant(kind);
+  const messages = kind === 'guest' ? state.aiMessages : state.hotelAiMessages;
+  if (messages.filter((item) => item.from === 'user').length >= 40 && !retry) { toast('Начните новый диалог', 'Демодиалог рассчитан на 40 сообщений.'); return null; }
+  if (retry) messages.pop(); // Remove only the failed assistant response; keep its user turn.
+  const history = messages.filter((item) => item.from === 'user').map((item) => item.text);
+  if (retry) history.pop();
+  else messages.push({ from: 'user', text: prompt });
+  const version = state.assistantVersion[kind];
+  state.assistantBusy[kind] = true;
+  render();
   try {
-    const result = await api('/api/guest/ai-search', { method: 'POST', body: JSON.stringify({ prompt }) });
-    state.searchPool = state.hotels || result.hotels;
-    state.searchResults = result.hotels;
-    state.parsedSearch = result.parsed;
-    state.filters = {
-      city: result.parsed.city === 'Казахстан' ? '' : result.parsed.city,
-      budget: Number(result.parsed.budget || 0),
-      amenities: result.parsed.amenities || []
-    };
-    toast('Запрос разобран', result.summary, 'success');
-    navigate('/app/search');
+    const result = await api(kind === 'guest' ? '/api/guest/assistant' : '/api/hotels/aspan-city/assistant', { method: 'POST', body: JSON.stringify({ prompt, history }) });
+    if (version !== state.assistantVersion[kind]) return null;
+    messages.push({ from: 'ai', text: result.reply, cards: result.cards, actions: result.actions, suggestions: result.suggestions });
+    if (kind === 'guest') {
+      state.searchResults = result.hotels;
+      state.parsedSearch = result.parsed;
+      state.searchSummary = result.summary;
+      state.searchPrompt = prompt;
+      state.filters = { city: result.parsed.city === 'Казахстан' ? '' : result.parsed.city, budget: result.parsed.budget || 0, amenities: result.parsed.amenities || [] };
+    }
+    return result;
   } catch (error) {
-    toast('Не удалось выполнить поиск', error.message, 'error');
-    button.disabled = false;
-    button.textContent = 'Найти с AI';
+    messages.push({ from: 'ai', text: 'Сообщение не обработано: ' + error.message, error: true });
+    return null;
+  } finally {
+    state.assistantBusy[kind] = false;
+    render();
+    requestAnimationFrame(() => {
+      $('.assistant-pending')?.scrollIntoView({ block: 'nearest' });
+      if (state.path === (kind === 'guest' ? '/app/ai' : '/hotel/ai')) {
+        $('.messages')?.lastElementChild?.scrollIntoView({ block: 'nearest', behavior: reducedMotionQuery.matches ? 'auto' : 'smooth' });
+        $('#' + kind + '-chat-input')?.focus({ preventScroll: true });
+      }
+    });
   }
 }
 
-function guestAnswer(prompt) {
-  if (/бассейн/i.test(prompt)) return 'В демо-каталоге есть несколько вариантов с бассейном: Nomad Garden в Астане, Burabay Pine Retreat в Бурабае и Shymkent Sun Hotel. Уточните город и бюджет — я сужу поиск.';
-  if (/лучше|выбрать|срав/i.test(prompt)) return 'Для вашего запроса рекомендую Aspan City Hotel: AI Match 94%, 44 000 ₸ за ночь, 2,1 км до центра и завтрак включён. Nomad Garden лучше, если важен бассейн.';
-  return 'Демо-каталог HotelX охватывает 10 городов Казахстана. Напишите город, максимальную цену за ночь и важные удобства — я сравню подходящие варианты.';
-}
-
-function submitGuestChat(event) {
+async function submitGuestChat(event) {
   event.preventDefault();
-  const input = $('#guest-chat-input');
-  const prompt = input?.value.trim();
-  if (!prompt) return;
-  state.aiMessages.push({ from: 'user', text: prompt }, { from: 'ai', text: guestAnswer(prompt) });
-  render();
-  requestAnimationFrame(() => $('.messages')?.lastElementChild?.scrollIntoView({ behavior: reducedMotionQuery.matches ? 'auto' : 'smooth' }));
+  const prompt = $('#guest-chat-input')?.value.trim();
+  if (prompt) await sendAssistant('guest', prompt);
 }
 
-function hotelAnswer(prompt) {
-  if (/цен|поднять/i.test(prompt)) return 'Да. Для Standard King на 7–8 ноября рекомендовано 44 000 ₸ вместо 40 000 ₸. Спрос высокий, ожидаемый эффект +200 000 ₸, уверенность модели 92%. Применение требует вашего подтверждения.';
-  if (/загруз/i.test(prompt)) return 'Ожидаемая загрузка на ближайшие 7 дней — 81–92%, пик в понедельник. Текущая загрузка 78%, на 6,2% выше прошлого периода.';
-  if (/хуже|слаб/i.test(prompt)) return 'Executive Suite продаётся слабее: загрузка 51% при 74–86% у других категорий. AI предлагает снизить цену с 78 000 до 76 000 ₸.';
-  return 'Главный фактор — рост темпа бронирований на выходные на 18%. События в Expo и ограниченная доступность в центре поддерживают спрос.';
-}
-
-function submitHotelChat(event) {
+async function submitHotelChat(event) {
   event.preventDefault();
-  const input = $('#hotel-chat-input');
-  const prompt = input?.value.trim();
-  if (!prompt) return;
-  state.hotelAiMessages.push({ from: 'user', text: prompt }, { from: 'ai', text: hotelAnswer(prompt) });
-  render();
+  const prompt = $('#hotel-chat-input')?.value.trim();
+  if (prompt) await sendAssistant('hotel', prompt);
 }
 
 async function submitManagerApplication(event) {
@@ -853,21 +880,6 @@ async function uploadVerificationDocument(verificationId, kind, file) {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.message || 'Не удалось загрузить документ.');
   return payload;
-}
-
-function mobileFiltersContent() {
-  return '<div class="modal-head"><div><h2>Фильтры</h2><p>Уточните подходящие варианты.</p></div><button class="btn btn-icon btn-ghost" data-action="close-modal">' + icon('close') + '</button></div>' +
-    '<div class="field"><label for="mobile-city">Город</label><select class="select" id="mobile-city">' + cityOptions(state.filters.city) + '</select></div>' +
-    '<div class="field" style="margin-top:14px"><label for="mobile-budget">Максимальная цена</label><select class="select" id="mobile-budget"><option value="0" ' + (!state.filters.budget ? 'selected' : '') + '>Любая цена</option><option value="40000" ' + (state.filters.budget === 40000 ? 'selected' : '') + '>40 000 ₸</option><option value="50000" ' + (state.filters.budget === 50000 ? 'selected' : '') + '>50 000 ₸</option><option value="60000" ' + (state.filters.budget === 60000 ? 'selected' : '') + '>60 000 ₸</option><option value="80000" ' + (state.filters.budget === 80000 ? 'selected' : '') + '>80 000 ₸</option></select></div>' +
-    '<div class="filter-group"><h4>Удобства</h4>' + ['Завтрак','Парковка','Бассейн','Спа','Фитнес-зал'].map((item) => '<label class="check"><input type="checkbox" data-mobile-amenity="' + item + '" ' + (state.filters.amenities.includes(item) ? 'checked' : '') + '> ' + item + '</label>').join('') + '</div><div class="modal-actions"><button class="btn btn-primary" data-action="apply-mobile-filters">Показать варианты</button></div>';
-}
-
-function applySearchFilters() {
-  const { city, budget, amenities } = state.filters;
-  const source = state.searchPool || state.hotels || [];
-  state.searchResults = source
-    .filter((hotel) => (!city || hotel.city === city) && (!budget || hotel.price <= budget) && amenities.every((item) => hotel.amenities.includes(item)))
-    .sort((left, right) => right.match - left.match || left.price - right.price);
 }
 
 function toggleFavorite(id) {
@@ -988,15 +1000,6 @@ async function downloadVerificationDocument(button) {
 document.addEventListener('click', async (event) => {
   const route = event.target.closest('[data-route]');
   if (route) { event.preventDefault(); if (!route.disabled) navigate(route.dataset.route); return; }
-  const cityChoice = event.target.closest('[data-city]');
-  if (cityChoice) {
-    state.filters = { city: cityChoice.dataset.city || '', budget: 0, amenities: [] };
-    state.searchPool = state.hotels;
-    state.parsedSearch = null;
-    applySearchFilters();
-    navigate('/app/search');
-    return;
-  }
   const context = event.target.closest('[data-context]');
   if (context) { setContext(context.dataset.context); return; }
   const favorite = event.target.closest('[data-favorite]');
@@ -1018,9 +1021,13 @@ document.addEventListener('click', async (event) => {
   const confirmAdmin = event.target.closest('[data-confirm-admin]');
   if (confirmAdmin) { await confirmAdminDecision(confirmAdmin); return; }
   const guestPrompt = event.target.closest('[data-guest-prompt]');
-  if (guestPrompt) { state.aiMessages.push({ from: 'user', text: guestPrompt.dataset.guestPrompt }, { from: 'ai', text: guestAnswer(guestPrompt.dataset.guestPrompt) }); render(); return; }
+  if (guestPrompt) { await sendAssistant('guest', guestPrompt.dataset.guestPrompt); return; }
   const hotelPrompt = event.target.closest('[data-hotel-prompt]');
-  if (hotelPrompt) { state.hotelAiMessages.push({ from: 'user', text: hotelPrompt.dataset.hotelPrompt }, { from: 'ai', text: hotelAnswer(hotelPrompt.dataset.hotelPrompt) }); render(); return; }
+  if (hotelPrompt) { await sendAssistant('hotel', hotelPrompt.dataset.hotelPrompt); return; }
+  const resetChat = event.target.closest('[data-reset-assistant]');
+  if (resetChat) { resetAssistant(resetChat.dataset.resetAssistant); render(); return; }
+  const retryChat = event.target.closest('[data-retry-assistant]');
+  if (retryChat) { const kind = retryChat.dataset.retryAssistant; const messages = kind === 'guest' ? state.aiMessages : state.hotelAiMessages; const prompt = messages[messages.length - 2]?.text; if (prompt) await sendAssistant(kind, prompt, { retry: true }); return; }
   const intent = event.target.closest('[data-intent]');
   if (intent) { state.intent = intent.dataset.intent; render(); return; }
   const action = event.target.closest('[data-action]');
@@ -1035,17 +1042,7 @@ document.addEventListener('click', async (event) => {
   else if (name === 'retry') hydrateRoute().catch(handleLoadError);
   else if (name === 'retry-init') { state.error = null; render(); init(); }
   else if (name === 'all-hotels') { state.filters = { city: '', budget: 0, amenities: [] }; state.searchPool = state.hotels; state.searchResults = state.hotels; state.parsedSearch = null; navigate('/app/search'); }
-  else if (name === 'classic-search') {
-    state.filters = { city: $('#classic-city')?.value || '', budget: 0, amenities: [] };
-    state.searchPool = state.hotels;
-    state.parsedSearch = null;
-    applySearchFilters();
-    navigate('/app/search');
-  }
   else if (name === 'clear-compare') { state.compare = []; state.compareResult = null; persistLocal('compare', []); if (state.path === '/app/compare') navigate('/app/search'); else render(); }
-  else if (name === 'reset-filters') { state.filters = { city: '', budget: 0, amenities: [] }; state.searchPool = state.hotels; state.searchResults = state.hotels; state.parsedSearch = null; render(); }
-  else if (name === 'open-filters') showModal(mobileFiltersContent());
-  else if (name === 'apply-mobile-filters') { state.filters.city = $('#mobile-city')?.value || ''; state.filters.budget = Number($('#mobile-budget')?.value || 0); state.filters.amenities = $$('[data-mobile-amenity]:checked').map((input) => input.dataset.mobileAmenity); state.searchPool = state.hotels; applySearchFilters(); closeModal(); render(); }
   else if (name === 'notifications') toast('Новых уведомлений нет', 'Мы сообщим об изменениях бронирований и заявок.');
   else if (name === 'confirm-booking') await confirmBooking(action);
   else if (name === 'apply-recommendation') openApplyRecommendation();
@@ -1081,30 +1078,7 @@ document.addEventListener('change', async (event) => {
     return;
   }
   if (event.target.matches('[data-compare-checkbox]')) toggleCompare(event.target.dataset.compareCheckbox);
-  if (event.target.id === 'sort-hotels') {
-    const source = [...(state.searchResults || state.hotels || [])];
-    if (event.target.value === 'price') source.sort((a, b) => a.price - b.price);
-    else if (event.target.value === 'rating') source.sort((a, b) => b.rating - a.rating);
-    else source.sort((a, b) => b.match - a.match);
-    state.searchResults = source; render();
-  }
-  if (event.target.id === 'city-filter') {
-    state.filters.city = event.target.value;
-    state.searchPool = state.hotels;
-    state.parsedSearch = null;
-    applySearchFilters();
-    render();
-  }
-  if (event.target.name === 'budget') {
-    state.filters.budget = Number(event.target.value);
-    applySearchFilters();
-    render();
-  }
-  if (event.target.matches('[data-amenity]')) {
-    state.filters.amenities = $$('[data-amenity]:checked').map((input) => input.dataset.amenity);
-    applySearchFilters();
-    render();
-  }
+
 });
 
 window.addEventListener('popstate', () => {

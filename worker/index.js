@@ -1,3 +1,5 @@
+import { assistantInput, guestDemoReply, hotelDemoTopic, hotelDemoReply } from "./demo-assistant.js";
+
 const STYLES = "__HOTELX_STYLES__";
 const APP_JS = "__HOTELX_APP_JS__";
 const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#315efb"/><stop offset="1" stop-color="#7657e8"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="24" font-weight="700">HX</text></svg>`;
@@ -250,6 +252,11 @@ const DASHBOARD = {
   recommendation: { id: "price-weekend", room: "Standard King", currentPrice: 40000, recommendedPrice: 44000, change: 10, impact: 200000, demand: "HIGH", from: "7 ноя", to: "8 ноя" }
 };
 
+const DEMO_FORECAST = { days7: [78, 81, 88, 92, 86, 74, 71], days30: [68, 71, 73, 70, 76, 78, 82, 79, 84, 86, 81, 77], days90: [65, 69, 72, 74, 78, 81, 83, 79, 76, 80, 84, 87], confidence: 92, expectedRevenue: 31400000, cancellations: 6.2 };
+function demoPricing(standardPrice = 40000) {
+  return [{ id: "standard", name: "Standard King", current: standardPrice, recommended: 44000, occupancy: 86, demand: "HIGH", impact: 200000 }, { id: "deluxe", name: "Deluxe City View", current: 52000, recommended: 54000, occupancy: 74, demand: "MEDIUM", impact: 96000 }, { id: "suite", name: "Executive Suite", current: 78000, recommended: 76000, occupancy: 51, demand: "LOW", impact: 65000 }];
+}
+
 const RESERVATIONS = [
   { id: "HX-260184", guest: "Дана К.", room: "512 · Deluxe City View", checkIn: "7 ноя", checkOut: "10 ноя", price: 156000, status: "CONFIRMED", channel: "HotelX" },
   { id: "HX-260185", guest: "Тимур С.", room: "304 · Standard King", checkIn: "6 ноя", checkOut: "8 ноя", price: 88000, status: "CHECKED_IN", channel: "Direct" },
@@ -458,6 +465,31 @@ async function handleApi(request, url, env) {
     return json({ hotels: hotels.map(publicHotel), query: { city: city || "Казахстан", checkIn: "2026-11-07", checkOut: "2026-11-10", guests: 2 }, catalogScope: "demo" });
   }
 
+  if (request.method === "POST" && path === "/api/guest/assistant") {
+    const auth = selectedContext(request, actor, "personal"); if (auth.error) return auth.error;
+    const input = assistantInput(await readBody(request));
+    if (!input) return apiError(400, "INVALID_ASSISTANT_INPUT", "Введите сообщение до 2000 символов. История — до 40 сообщений.");
+    const result = guestDemoReply({ ...input, catalog: HOTELS, parsers: { canonicalCity, budgetFromPrompt, amenitiesFromPrompt } });
+    return json({ ...result, hotels: result.hotels.map(publicHotel), cards: result.cards.map(publicHotel) });
+  }
+
+  const assistantMatch = path.match(/^\/api\/hotels\/([a-z0-9-]+)\/assistant$/);
+  if (request.method === "POST" && assistantMatch) {
+    const auth = selectedContext(request, actor, "business", "VIEW_DASHBOARD"); if (auth.error) return auth.error;
+    if (assistantMatch[1] !== auth.context.hotelId) return apiError(404, "HOTEL_NOT_FOUND", "Отель не найден.");
+    const input = assistantInput(await readBody(request));
+    if (!input) return apiError(400, "INVALID_ASSISTANT_INPUT", "Введите сообщение до 2000 символов. История — до 40 сообщений.");
+    const topic = hotelDemoTopic(input.prompt, input.history);
+    const permission = { pricing: "VIEW_PRICING", forecast: "VIEW_ANALYTICS", metrics: "VIEW_DASHBOARD", help: "VIEW_DASHBOARD" }[topic];
+    const topicAuth = selectedContext(request, actor, "business", permission); if (topicAuth.error) return topicAuth.error;
+    let price = 40000;
+    if (topic === "pricing" && env?.DB) {
+      const override = await env.DB.prepare("SELECT price FROM price_overrides WHERE hotel_id = ? AND room_type = 'Standard King' AND from_date = '2026-11-07' AND to_date = '2026-11-08'").bind(auth.context.hotelId).first();
+      if (override) price = override.price;
+    }
+    return json(hotelDemoReply({ ...input, topic, dashboard: DASHBOARD, forecast: DEMO_FORECAST, pricing: demoPricing(price) }));
+  }
+
   if (request.method === "POST" && path === "/api/guest/ai-search") {
     const auth = selectedContext(request, actor, "personal"); if (auth.error) return auth.error;
     const body = await readBody(request); const prompt = String(body.prompt || "");
@@ -631,9 +663,9 @@ async function handleApi(request, url, env) {
         const override = await env.DB.prepare("SELECT price FROM price_overrides WHERE hotel_id = ? AND room_type = 'Standard King' AND from_date = '2026-11-07' AND to_date = '2026-11-08'").bind(auth.context.hotelId).first();
         if (override) standardPrice = override.price;
       }
-      return json({ roomTypes: [{ id: "standard", name: "Standard King", current: standardPrice, recommended: 44000, occupancy: 86, demand: "HIGH", impact: 200000 }, { id: "deluxe", name: "Deluxe City View", current: 52000, recommended: 54000, occupancy: 74, demand: "MEDIUM", impact: 96000 }, { id: "suite", name: "Executive Suite", current: 78000, recommended: 76000, occupancy: 51, demand: "LOW", impact: 65000 }] });
+      return json({ roomTypes: demoPricing(standardPrice) });
     }
-    if (section === "forecast") return json({ forecast: { days7: [78, 81, 88, 92, 86, 74, 71], days30: [68, 71, 73, 70, 76, 78, 82, 79, 84, 86, 81, 77], days90: [65, 69, 72, 74, 78, 81, 83, 79, 76, 80, 84, 87], confidence: 92, expectedRevenue: 31400000, cancellations: 6.2 } });
+    if (section === "forecast") return json({ forecast: DEMO_FORECAST });
     return json({ recommendations: [DASHBOARD.recommendation, { id: "min-stay", room: "Все категории", title: "Минимум 2 ночи", text: "Ограничение на субботу поможет сохранить номера для более доходных бронирований.", impact: 125000, demand: "MEDIUM" }] });
   }
 
