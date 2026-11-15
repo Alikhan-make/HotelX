@@ -51,3 +51,5 @@ The local preview is served at `http://127.0.0.1:4173`. `npm test` builds first,
 ## Illustrative SaaS subscriptions
 
 `/plans`, the landing page and `/hotel/subscription` show Starter, Pro and Enterprise plans in KZT. Annual billing applies an illustrative 20% discount and displays the entire annual amount. Selection, switching and cancellation require confirmation and persist only in namespaced browser localStorage for the fixture hotel. Prices, quotas and plan benefits are conceptual; there is no payment, automatic renewal, server subscription, or entitlement enforcement. No private API routes or permissions change. The hotel navigation entry uses MANAGE_SETTINGS. `scripts/subscription-test.mjs` checks quotes, rendering, confirmation, cancellation, invalid persisted values and unavailable browser storage.
+
+The upper-right Profile button opens an account popover with “Подключить подписку”, linking to `/plans` from both guest and hotel views. The popover stays anchored at the top right for header buttons; the sidebar context switcher retains its bottom-left position. Selecting the plan link uses the existing router and closes the popover.

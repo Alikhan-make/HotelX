@@ -11,10 +11,24 @@ const context = {
   localStorage: { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) },
   requestAnimationFrame() {}, setTimeout() {}
 };
-runInNewContext(source.replace(/\ninit\(\);\s*$/, '') + '\nglobalThis.qa = { state, SUBSCRIPTION_PLANS, subscriptionQuote, normalizeSubscription, renderSubscriptions, renderLanding, openSubscriptionConfirmation, confirmSubscription, openSubscriptionCancellation, cancelSubscription, closeModal, setBillingCycle, canHotelRoute }; render = () => {};', context);
+runInNewContext(source.replace(/\ninit\(\);\s*$/, '') + '\nglobalThis.qa = { state, SUBSCRIPTION_PLANS, subscriptionQuote, normalizeSubscription, renderSubscriptions, renderLanding, openSubscriptionConfirmation, confirmSubscription, openSubscriptionCancellation, cancelSubscription, closeModal, setBillingCycle, canHotelRoute, contextPopover, guestShell, workspaceShell }; render = () => {};', context);
 const q = context.qa;
 q.state.me = { user: { id: 'qa' }, contexts: [{ id: 'business', permissions: ['ALL'] }] };
 q.state.context = 'business';
+assert.equal(q.contextPopover(true), '');
+q.state.contextMenu = true;
+q.state.contextMenuAnchor = 'top';
+for (const guest of [true, false]) {
+  const menu = q.contextPopover(guest);
+  assert.match(menu, /href="\/plans" data-route="\/plans"/);
+  assert.match(menu, /Подключить подписку/);
+  assert.match(menu, /guest-context/);
+}
+q.state.contextMenuAnchor = 'bottom';
+assert.doesNotMatch(q.contextPopover(false), /guest-context/);
+assert.match(q.guestShell(''), /aria-label="Профиль" aria-controls="profile-menu" aria-expanded="true"/);
+assert.match(q.workspaceShell(''), /data-context-anchor="top" aria-label="Профиль"/);
+q.state.contextMenu = false;
 assert.equal(q.canHotelRoute('/hotel/subscription'), true);
 q.state.me.contexts[0].permissions = ['VIEW_ROOMS'];
 assert.equal(q.canHotelRoute('/hotel/subscription'), false);

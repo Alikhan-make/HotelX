@@ -78,6 +78,7 @@ const state = {
   pendingSubscription: null,
   error: null,
   contextMenu: false,
+  contextMenuAnchor: 'top',
   intent: new URLSearchParams(location.search).get('intent') === 'manager' ? 'manager' : 'guest',
   hotels: null,
   searchPool: null,
@@ -323,10 +324,25 @@ function brand(dark = false) {
 
 function contextPopover(guest = false) {
   if (!state.contextMenu || !state.me) return '';
-  return '<div class="context-popover ' + (guest ? 'guest-context' : '') + '"><div class="text-xs muted" style="padding:8px 11px 5px;font-weight:800">КОНТЕКСТ ДОСТУПА</div>' + state.me.contexts.map((context) =>
+  return '<div id="profile-menu" class="context-popover ' + (guest || state.contextMenuAnchor === 'top' ? 'guest-context' : '') + '"><a class="context-item subscription-menu-item" href="/plans" data-route="/plans"><span class="avatar">' + icon('card') + '</span><span class="grow"><strong>Подключить подписку</strong><span>Тарифы HotelX · демо</span></span>' + icon('chevron') + '</a><div class="divider" style="margin:7px 3px"></div><div class="text-xs muted" style="padding:8px 11px 5px;font-weight:800">КОНТЕКСТ ДОСТУПА</div>' + state.me.contexts.map((context) =>
     '<button class="context-item ' + (context.id === state.context ? 'active' : '') + '" data-context="' + context.id + '"><span class="avatar">' + initials(context.label) + '</span><span class="grow"><strong>' + esc(context.label) + '</strong><span>' + esc(context.subtitle) + '</span></span>' + (context.id === state.context ? '<span class="context-tag">Активен</span>' : '') + '</button>'
   ).join('') + '<div class="divider" style="margin:7px 3px"></div><div class="text-xs muted" style="padding:3px 11px 8px">Контексты назначены сервером. Выбор не изменяет роль.</div></div>';
 }
+
+function positionContextMenu() {
+  if (!state.contextMenu || state.contextMenuAnchor !== 'top') return;
+  const menu = $('#profile-menu');
+  const trigger = $('[data-action="toggle-context"][data-context-anchor="top"]');
+  if (!menu || !trigger) return;
+  const rect = trigger.getBoundingClientRect();
+  const top = Math.max(8, rect.bottom + 8);
+  menu.style.top = top + 'px';
+  menu.style.right = Math.max(10, window.innerWidth - rect.right) + 'px';
+  menu.style.maxHeight = Math.max(0, window.innerHeight - top - 12) + 'px';
+}
+
+window.addEventListener('resize', positionContextMenu);
+window.addEventListener('scroll', positionContextMenu, { passive: true });
 
 function guestNavLink(path, label, iconName, activePrefix = path) {
   const active = state.path.startsWith(activePrefix);
@@ -337,7 +353,7 @@ function guestShell(content, viewClass = '') {
   const name = state.me?.user.name || 'Гость';
   return '<div class="guest-shell' + viewClass + '"><header class="guest-header"><div class="guest-header-inner">' + brand() + '<nav class="guest-nav" aria-label="Навигация гостя">' +
     guestNavLink('/app/explore', 'Поиск', 'search', '/app/explore') + guestNavLink('/app/trips', 'Поездки', 'calendar') + guestNavLink('/app/favorites', 'Избранное', 'heart') + guestNavLink('/app/ai', 'AI-помощник', 'spark') +
-    '</nav><div class="guest-actions"><button class="btn btn-icon btn-ghost" aria-label="Уведомления" data-action="notifications">' + icon('bell') + '</button><button class="btn btn-ghost" data-action="toggle-context"><span class="avatar">' + initials(name) + '</span></button></div></div></header>' +
+    '</nav><div class="guest-actions"><button class="btn btn-icon btn-ghost" aria-label="Уведомления" data-action="notifications">' + icon('bell') + '</button><button class="btn btn-ghost" data-action="toggle-context" data-context-anchor="top" aria-label="Профиль" aria-controls="profile-menu" aria-expanded="' + state.contextMenu + '"><span class="avatar">' + initials(name) + '</span></button></div></div></header>' +
     contextPopover(true) + '<main class="guest-main">' + content + '</main><nav class="guest-bottom-nav" aria-label="Мобильная навигация">' +
     guestNavLink('/app/explore', 'Поиск', 'search', '/app/explore') + guestNavLink('/app/trips', 'Поездки', 'calendar') + guestNavLink('/app/favorites', 'Сохранено', 'heart') + guestNavLink('/app/ai', 'AI', 'spark') + guestNavLink('/app/profile', 'Профиль', 'user') + '</nav>' + compareBar() + '</div>';
 }
@@ -367,7 +383,7 @@ function workspaceShell(content, admin = false, viewClass = '') {
   const groups = admin ? ADMIN_NAV : HOTEL_NAV;
   return '<div class="app-shell' + viewClass + '"><aside class="sidebar">' + brand(true) + '<button class="side-context" data-action="toggle-context"><span class="avatar">' + initials(ctx?.label) + '</span><span class="grow"><strong>' + esc(ctx?.label || '') + '</strong><span>' + esc(ctx?.subtitle || '') + '</span></span>' + icon('chevron') + '</button>' + sideNav(groups) +
     '<div class="side-footer"><div class="side-user"><span class="avatar">' + initials(state.me?.user.name) + '</span><span class="grow"><strong>' + esc(state.me?.user.name || '') + '</strong><span>' + esc(state.me?.user.email || '') + '</span></span></div></div></aside>' + contextPopover(false) +
-    '<div class="workspace"><header class="workspace-topbar"><button class="btn btn-icon btn-ghost mobile-menu" data-action="open-sidebar" aria-label="Открыть меню">' + icon('menu') + '</button><h2>' + esc(pageTitle()) + '</h2><div class="top-actions"><button class="btn btn-icon btn-ghost" data-action="notifications" aria-label="Уведомления">' + icon('bell') + '</button><button class="btn btn-sm" data-action="toggle-context">' + icon(admin ? 'shield' : 'building') + '<span class="nowrap">' + esc(ctx?.label || '') + '</span></button></div></header><main class="workspace-main">' + content + '</main></div></div>';
+    '<div class="workspace"><header class="workspace-topbar"><button class="btn btn-icon btn-ghost mobile-menu" data-action="open-sidebar" aria-label="Открыть меню">' + icon('menu') + '</button><h2>' + esc(pageTitle()) + '</h2><div class="top-actions"><button class="btn btn-icon btn-ghost" data-action="notifications" aria-label="Уведомления">' + icon('bell') + '</button><button class="btn btn-sm" data-action="toggle-context" data-context-anchor="top" aria-label="Профиль" aria-controls="profile-menu" aria-expanded="' + state.contextMenu + '">' + icon(admin ? 'shield' : 'building') + '<span class="nowrap">' + esc(ctx?.label || '') + '</span></button></div></header><main class="workspace-main">' + content + '</main></div></div>';
 }
 
 function pageTitle() {
@@ -841,6 +857,7 @@ function render() {
   }
   bindForms();
   setupMotion();
+  positionContextMenu();
 }
 
 function renderDemoEntry() {
@@ -1128,7 +1145,7 @@ document.addEventListener('click', async (event) => {
   if (name === 'confirm-subscription') confirmSubscription();
   else if (name === 'cancel-subscription') openSubscriptionCancellation();
   else if (name === 'confirm-cancel-subscription') cancelSubscription();
-  else if (name === 'toggle-context') { state.contextMenu = !state.contextMenu; render(); }
+  else if (name === 'toggle-context') { state.contextMenuAnchor = action.dataset.contextAnchor === 'top' ? 'top' : 'bottom'; state.contextMenu = !state.contextMenu; render(); }
   else if (name === 'open-sidebar') document.body.classList.add('sidebar-open');
   else if (name === 'close-modal') { if (!event.target.closest('[data-modal-panel]') || event.target.closest('button')) closeModal(); }
   else if (name === 'retry') hydrateRoute().catch(handleLoadError);

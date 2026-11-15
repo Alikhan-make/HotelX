@@ -677,3 +677,7 @@ body:has(.public-demo-banner) .sidebar { top: 90px; }
 .subscription-current p { font-size: 13px; line-height: 1.7; color: var(--muted); margin: 6px 0 0; }
 @media (max-width: 1000px) { .subscription-grid { gap: 12px; } .subscription-card { padding: 18px; } }
 @media (max-width: 760px) { .subscription-grid { grid-template-columns: 1fr; } .subscription-description, .subscription-total { min-height: 0; } .subscription-current { align-items: stretch; flex-direction: column; } .subscription-card { padding: 24px; } .subscription-price strong { font-size: 34px; } }
+
+.context-popover { overflow-y: auto; max-height: calc(100dvh - 32px); }
+.subscription-menu-item { background: var(--brand-soft); }
+.subscription-menu-item:hover { background: #e2e9ff; }
