@@ -43,7 +43,3 @@ npm run dev
 ## Deployment architecture
 
 The existing Cloudflare/Sites build is preserved: `npm run build` emits `dist/server/index.js`, with D1/R2 configuration in `.openai/hosting.json`. The Vercel target adds a separate build, generates public browser assets into `public/`, and bundles the same Worker behind `api/entry.js`. Generated assets are excluded from Git and rebuilt during deployment. Details of the original app and demo data boundaries are in [PROJECT.md](PROJECT.md).
-
-## Real hotels and 360-degree tours
-
-The Vercel guest catalogue now lists Hotel Almaty, Hotel Uyut and City Stay Apart-Hotel with official sources, real hotel photographs and individual interactive tours. Open a card's **360°-тур** tab and click to load the provider's viewer; use the separate-window link if embedding fails. Rates, review scores and room availability are not fabricated. HotelX is not claiming a partnership or live booking integration. The owner dashboard remains an explicitly labelled independent demo.

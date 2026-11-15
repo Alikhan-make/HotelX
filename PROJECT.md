@@ -47,11 +47,3 @@ The local preview is served at `http://127.0.0.1:4173`. `npm test` builds first,
 ## Vercel public demo target
 
 `npm run build:vercel` produces `public/` and the ignored generated Worker module consumed by `api/entry.js`. `vercel.json` provides rewrites and strict security headers. This target injects a fixed public fixture identity, exposes personal/business demo contexts only, and rejects all writes except conversational search and comparisons. It has no D1/R2 binding or external secrets. The original Sites build and authentication checks remain unchanged. Generic frontend support displays a public-demo banner only when `/api/me` returns `publicDemo: true`. See README.md for deployment settings and limitations.
-
-## Verified hotel directory and 360 tours (Vercel)
-
-The Vercel adapter enables HOTELX_REAL_CATALOG, which serves three real Almaty hotels from worker/real-catalog.js. Each record includes an official source URL, verification date, the hotel's own image and a tour URL discovered on its official site. There are no invented rates, ratings, room availability or claimed partnerships. Guest catalogue, detail, comparison and conversational search use this directory. The historical fictional fixtures remain isolated to the original Worker target and hotel-owner demo; they do not imply a business relationship with the directory hotels.
-
-worker/real-ui.js provides per-hotel About/360 tabs, a click-to-load embedded viewer, full-screen request and an always-visible external tour fallback. Native navigation inside each tour is controlled by its provider, rather than a fabricated floor plan. The reference video depicts a bespoke 3D floor/room walkthrough; this implementation uses each hotel's available official panoramic tour. Recreating a custom model requires that property's source panorama/model assets.
-
-Sources checked 2026-11-15: https://hotelalmaty.kz/rooms/, https://www.hotel-uyut.kz/virtual-tour, https://citystay.kz/ru/3d-tour. The CSP allows only the selected image and frame origins. External tours load after an explicit click and can be unavailable independently of HotelX.

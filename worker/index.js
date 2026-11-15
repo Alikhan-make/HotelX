@@ -1,4 +1,3 @@
-import { REAL_HOTELS, realCatalogReply } from "./real-catalog.js";
 import { assistantInput, guestDemoReply, hotelDemoTopic, hotelDemoReply } from "./demo-assistant.js";
 
 const STYLES = "__HOTELX_STYLES__";
@@ -454,25 +453,6 @@ async function handleApi(request, url, env) {
     return json({ user: { id: actor.id, name: actor.name, email: actor.email }, contexts: actor.contexts, defaultContext: "personal", verification, privatePrototype: true });
   }
 
-  if (env?.HOTELX_REAL_CATALOG === "1" && path.startsWith("/api/guest/")) {
-    const auth = selectedContext(request, actor, "personal"); if (auth.error) return auth.error;
-    if (request.method === "GET" && path === "/api/guest/hotels") {
-      const city = canonicalCity(url.searchParams.get("city"));
-      return json({ hotels: REAL_HOTELS.filter((h) => !city || h.city === city), catalogScope: "verified-directory" });
-    }
-    const detail = path.match(/^\/api\/guest\/hotels\/([a-z0-9-]+)$/);
-    if (request.method === "GET" && detail) { const hotel = REAL_HOTELS.find((h) => h.id === detail[1]); return hotel ? json({ hotel }) : apiError(404, "HOTEL_NOT_FOUND", "Отель не найден."); }
-    if (request.method === "POST" && ["/api/guest/assistant", "/api/guest/ai-search"].includes(path)) {
-      const input = assistantInput(await readBody(request));
-      return input ? json(realCatalogReply(input, canonicalCity)) : apiError(400, "INVALID_ASSISTANT_INPUT", "Введите сообщение до 2000 символов.");
-    }
-    if (request.method === "POST" && path === "/api/guest/compare") {
-      const body = await readBody(request);
-      const hotels = [...new Set(Array.isArray(body.ids) ? body.ids : [])].map((id) => REAL_HOTELS.find((h) => h.id === id)).filter(Boolean).slice(0, 3);
-      return hotels.length >= 2 ? json({ hotels, recommendation: "Сравните официальные описания и 360°-туры. Цены и наличие уточняйте у гостиниц." }) : apiError(400, "COMPARE_MINIMUM", "Выберите минимум два отеля.");
-    }
-  }
-
   if (request.method === "GET" && path === "/api/guest/hotels") {
     const auth = selectedContext(request, actor, "personal"); if (auth.error) return auth.error;
     const requestedBudget = Number(url.searchParams.get("budget") || 0);
@@ -755,7 +735,7 @@ const PAGE = `<!doctype html>
 <body><div id="app"><div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Загружаем ваш контекст…</span></div></div></div><div id="toast-region" class="toast-region" aria-live="polite"></div><div id="modal-root"></div><div id="scroll-progress" aria-hidden="true"></div><script src="/assets/app.js?v=__HOTELX_ASSET_VERSION__" defer></script></body></html>`;
 
 const SECURITY_HEADERS = {
-  "content-security-policy": "default-src 'self'; img-src 'self' https://images.unsplash.com https://hotelalmaty.kz https://www.hotel-uyut.kz https://citystay.kz data:; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; object-src 'none'; connect-src 'self'; frame-src https://www.google.com https://www.hotel-uyut.kz https://citystay.kz; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  "content-security-policy": "default-src 'self'; img-src 'self' https://images.unsplash.com data:; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; object-src 'none'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
   "referrer-policy": "strict-origin-when-cross-origin", "x-content-type-options": "nosniff", "x-frame-options": "DENY", "permissions-policy": "camera=(), microphone=(), geolocation=()"
 };
 
