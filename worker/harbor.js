@@ -8,10 +8,10 @@ const HARBOR_MEDIA = {
   "rain": "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20261117_063703_04e54df7-2236-4dff-b95b-a9a34c1f78ec.mp4"
 };
 
+const HOME_WORDMARK = 'HotelX';
+
 class HotelXHarbor extends HTMLElement {
   connectedCallback() {
-    this.previousTitle = document.title;
-    document.title = "HotelX — Claim Your Summit";
     this.events = new AbortController();
     this.frames = [];
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)');
@@ -26,20 +26,26 @@ class HotelXHarbor extends HTMLElement {
     this.innerHTML = `
       <div class="hb-stage">
         <div class="hb-layer hb-back">${sceneImage('back')}${video('hb-rain')}${video('hb-rain')}<div class="hb-shade"></div></div>
-        <div class="hb-headline"><div class="hb-type"><span class="hb-kicker" lang="en">Claim Your</span><h1 lang="en" aria-label="Claim Your Summit">${[...'Summit'].map(letter => '<span aria-hidden="true">'+letter+'</span>').join('')}</h1></div></div>
+        <div class="hb-headline"><div class="hb-type"><span class="hb-kicker">Отели Казахстана</span><h1 aria-label="${HOME_WORDMARK}">${[...HOME_WORDMARK].map(letter => '<span aria-hidden="true">'+letter+'</span>').join('')}</h1></div></div>
         <div class="hb-layer hb-city">${sceneImage('city')}</div>
         <div class="hb-layer hb-front"><div class="hb-tint"></div>${sceneImage('front')}</div>
       </div>
-      <div class="hb-opening" aria-hidden="true"></div><div class="hb-doors" aria-hidden="true"><i></i><i></i></div>
+      <div class="hb-opening" aria-hidden="true"></div><div class="hb-doors" aria-hidden="true"><i><b>H</b></i><i><b>X</b></i></div>
       <nav class="hb-nav" aria-label="Навигация HotelX">
-        <a class="hb-logo" href="/" data-route="/">HOTELX</a>
+        <a class="hb-logo" href="/" data-route="/">Hotel<span>X</span></a>
         <div class="hb-links"><a href="/" data-route="/" aria-current="page">Главная</a><a href="#how">О платформе</a><a href="/hotel/dashboard" data-route="/hotel/dashboard">Отельерам</a><a href="#plans">Тарифы</a></div>
-        <div class="hb-actions"><a class="hb-login" href="/login" data-route="/login"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4.4" ry="9"/><path d="M3 12h18"/></svg>Войти</a><a class="hb-cta" href="/app/explore" data-route="/app/explore">Найти отель</a></div>
+        <div class="hb-actions"><a class="hb-login" href="/login" data-route="/login"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4.4" ry="9"/><path d="M3 12h18"/></svg>Войти</a><a class="hb-cta" href="/app/explore" data-route="/app/explore">Каталог отелей</a></div>
       </nav>
+      <form class="hb-search" id="ai-search-form" role="search" aria-label="Подбор отеля">
+        <label for="ai-search-input">Какой отель вам подойдёт?</label>
+        <div class="hb-search-field"><input id="ai-search-input" required maxlength="2000" placeholder="Алматы до 60 000 ₸ с завтраком" autocomplete="off"><button type="submit">Подобрать</button></div>
+        <span class="hb-search-status" role="status"></span>
+      </form>
       <button class="hb-skip" type="button">Пропустить заставку</button>
       <div class="hb-tools"><a href="/app/hotel/aspan-city" data-route="/app/hotel/aspan-city">Aspan City Hotel · демо</a><button type="button" class="hb-pause" aria-label="Приостановить дождь" title="Приостановить дождь" aria-pressed="false">Ⅱ</button></div>`;
     const el = selector => this.querySelector(selector);
     el('.hb-nav').inert = !still;
+    el('.hb-search').inert = !still;
     this.rain = [...this.querySelectorAll('.hb-rain')];
     this.wet = false;
     this.userPaused = false;
@@ -80,7 +86,7 @@ class HotelXHarbor extends HTMLElement {
       const available = baseline + stage.top - nav.bottom - .035 * height;
       const ctx = document.createElement('canvas').getContext('2d');
       ctx.font = '700 100px HarborInter, Inter, sans-serif';
-      const ratio = ctx.measureText('Summit').width / 100 - .045 * 6;
+      const ratio = ctx.measureText(HOME_WORDMARK).width / 100 - .045 * HOME_WORDMARK.length;
       const size = Math.max(24, Math.min(stage.width * .625 / ratio, width * .92 / ratio, available / .88));
       this.style.setProperty('--word',size+'px');
       this.style.setProperty('--baseline',baseline+'px');
@@ -132,7 +138,20 @@ class HotelXHarbor extends HTMLElement {
     track(item('.hb-opening'),[[2450,opacity(1),ease],[2950,opacity(0)]]);
     track(item('.hb-nav'),[[2450,rise(0,'-6px'),'ease-out'],[2750,rise(1,'0px')]]);
     track(item('.hb-kicker'),[[2450,rise(0,'.5em'),reveal],[3100,rise(1,'0em')]]);
-    this.querySelectorAll('h1 span').forEach((letter,i) => track(letter,[[2450+i*54,rise(0,'.14em'),reveal],[3150+i*54,rise(1,'0em')]]));
+    const letters = this.querySelectorAll('h1 span');
+    letters.forEach((letter, i) => {
+      const from = 2450 + i * 54;
+      if (i === letters.length - 1) {
+        track(letter, [
+          [from, {opacity: 0, transform: 'translateY(.2em) rotate(-12deg) scale(.88)'}, reveal],
+          [from + 490, {opacity: 1, transform: 'translateY(0) rotate(2deg) scale(1.025)'}, 'ease-out'],
+          [from + 850, {opacity: 1, transform: 'none'}]
+        ]);
+      } else {
+        track(letter, [[from,rise(0,'.14em'),reveal],[from+700,rise(1,'0em')]]);
+      }
+    });
+    track(item('.hb-search'),[[3200,rise(0,'12px'),reveal],[3950,rise(1,'0px')]]);
     track(item('.hb-shade'),[[2900,opacity(0),ease],[3700,opacity(1)]]);
     track(item('.hb-back'),[[2900,y(0),'cubic-bezier(.45,0,.35,1)'],[4300,y(-1.5)]]);
     track(item('.hb-city'),[[2900,y(0),'cubic-bezier(.45,0,.3,1)'],[4300,y(-4)],[4600,y(-4),ease],[6900,y(0)]]);
@@ -157,6 +176,7 @@ class HotelXHarbor extends HTMLElement {
         if (Number.isFinite(this.tilt.duration)) this.tilt.currentTime = Math.max(0,this.tilt.duration-.042);
       }
       if (elapsed >= 2450 && this.querySelector('.hb-nav').inert) this.querySelector('.hb-nav').inert = false;
+      if (elapsed >= 3200 && this.querySelector('.hb-search').inert) this.querySelector('.hb-search').inert = false;
       if (elapsed >= 2400 && !this.wet) {this.wet = true; this.syncRain();}
       if (elapsed >= 7400) this.finish();
       else this.frame = requestAnimationFrame(tick);
@@ -197,6 +217,7 @@ class HotelXHarbor extends HTMLElement {
     this.finished = true;
     this.classList.remove('intro');
     this.querySelector('.hb-nav').inert = false;
+    this.querySelector('.hb-search').inert = false;
     clearTimeout(this.failsafe); clearTimeout(this.delay); cancelAnimationFrame(this.frame);
     this.frames.forEach(animation => animation.cancel()); this.frames = [];
     this.tilt?.pause();
@@ -205,7 +226,6 @@ class HotelXHarbor extends HTMLElement {
   }
 
   disconnectedCallback() {
-    document.title = this.previousTitle;
     this.events.abort(); this.resize.disconnect(); this.visibility.disconnect();
     cancelAnimationFrame(this.frame);
     [this.failsafe,this.delay,this.fadeTimer].forEach(clearTimeout);

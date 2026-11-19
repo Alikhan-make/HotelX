@@ -890,7 +890,10 @@ async function submitAiSearch(event) {
   const prompt = $('#ai-search-input')?.value.trim();
   if (!prompt || state.assistantBusy.guest) return;
   const path = state.path;
-  const result = await sendAssistant('guest', prompt, { reset: path === '/app/explore' });
+  const status = event.currentTarget.querySelector('[role="status"]');
+  if (status) status.textContent = 'Подбираем варианты…';
+  const result = await sendAssistant('guest', prompt, { reset: path === '/' || path === '/app/explore' });
+  if (status) status.textContent = result ? '' : 'Подбор не завершён. Попробуйте ещё раз.';
   if (result && state.context === 'personal' && state.path === path) navigate('/app/search');
 }
 

@@ -17,4 +17,7 @@ assert.match(app,/customElements\.define\('hotelx-harbor', HotelXHarbor\)/);
 assert.match(app,/<hotelx-harbor><\/hotelx-harbor>/);
 assert.equal((app.match(/https:\/\/images\.higgs\.ai\//g)||[]).length,5);
 assert.equal((app.match(/https:\/\/d8j0ntlcm91z4\.cloudfront\.net\/[^"\s]+\.mp4/g)||[]).length,2);
+assert.doesNotMatch(app,/Claim Your|Summit/);
+assert.match(app,/const HOME_WORDMARK = 'HotelX'/);
+assert.match(app,/<form class="hb-search" id="ai-search-form"/);
 console.log('PASS home-only preload, cinematic assets and matching Vercel/Worker security policies');

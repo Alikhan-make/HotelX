@@ -90,3 +90,52 @@ hotelx-harbor {
   .hb-actions .hb-cta { height: 32px; padding: 0 12px; }
 }
 @media (prefers-reduced-motion:reduce) { .harbor * { transition-duration: 0s !important; } }
+
+/* HotelX welcome and trip search */
+.harbor { --hotelx-accent: #86e8ef; }
+.hb-logo { font-size: max(20px,calc(25 * var(--u))); letter-spacing: -.055em; font-weight: 700; }
+.hb-logo span, .hb-type h1 span:last-child { color: var(--hotelx-accent); }
+.hb-kicker {
+  top: calc(-.77 * var(--word) - 19px); translate: -50% 0;
+  font: 550 clamp(11px,.95vw,16px)/1 HarborInter,Arial,sans-serif;
+  letter-spacing: .15em; text-transform: uppercase;
+}
+.hb-actions .hb-cta { color: #072c36; background: #b4f1f2; }
+.hb-actions .hb-cta:hover { background: #dbffff; }
+.hb-search {
+  position: absolute; z-index: 8; left: max(24px,calc(125 * var(--u)));
+  bottom: clamp(32px,6svh,75px); width: min(460px,44vw); margin: 0;
+}
+.hb-search label { display: block; margin-bottom: 9px; font-weight: 600; font-size: clamp(17px,1.4vw,23px); text-shadow: 0 1px 10px #070e22; }
+.hb-search-field { display: flex; align-items: center; gap: 6px; padding: 6px; border: 1px solid #ffffff66; border-radius: 16px; background: #0b182bd9; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.hb-search-field input { flex: 1; min-width: 0; padding: 9px; border: 0; color: white; background: transparent; font-size: 16px; }
+.hb-search-field input::placeholder { color: #dae3e9; opacity: 1; }
+.hb-search-field button { min-height: 42px; padding: 0 18px; border-radius: 10px; font-size: 14px; font-weight: 650; background: var(--hotelx-accent); color: #092e39; cursor: pointer; }
+.hb-search-field button:hover { background: #bbf4f7; }
+.hb-search-status:not(:empty) { display: inline-block; margin-top: 5px; padding: 4px 9px; background: #101b2de8; border-radius: 7px; font-size: 13px; }
+.intro .hb-search { opacity: 0; }
+@media (max-width:819px) and (min-height:501px) {
+  .hb-search { left: 18px; right: 18px; width: auto; bottom: 74px; }
+  .hb-tools { bottom: 18px; right: 18px; }
+}
+@media (max-height:500px) and (orientation:landscape) {
+  .hb-search { left: 24px; bottom: 14px; width: min(395px,55vw); }
+  .hb-search label { font-size: 15px; margin-bottom: 4px; }
+  .hb-search-field { padding: 4px; }
+  .hb-search-field button { min-height: 34px; }
+  .hb-kicker { top: calc(-.77 * var(--word) - 12px); font-size: 10px; }
+}
+@media (max-width:380px) { .hb-search-field button { padding-inline: 10px; } .hb-search-field input { padding-inline: 4px; } }
+.hb-doors i { position: relative; background-color: #0b0d16; }
+.hb-doors b {
+  position: absolute; top: 48%; right: 0; translate: 0 -50%;
+  display: grid; place-items: center end; width: 38px; height: 76px; padding-right: 2px;
+  font: 600 27px/1 HarborInter,Arial,sans-serif; font-style: normal;
+  color: #edf6fa; background: #111823bc; border: 1px solid #b3d1df99;
+  border-right: 0; border-radius: 50px 0 0 50px;
+}
+.hb-doors i:last-child b {
+  left: 0; right: auto; place-items: center start; padding: 0 0 0 2px;
+  border: 1px solid #b3d1df99; border-left: 0; border-radius: 0 50px 50px 0;
+  color: var(--hotelx-accent);
+}

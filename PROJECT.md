@@ -56,4 +56,4 @@ The upper-right Profile button opens an account popover with “Подключи
 
 ## Cinematic homepage
 
-The first screen uses a seven-layer harbour intro in `worker/harbor.js` and `worker/harbor.css`. Five responsive images and two silent clips are loaded from the supplied Higgs and CloudFront addresses. The skyline illustrates the HotelX demo. Skip, pause and reduced-motion controls cover the intro and looping rain. Links lead to the existing catalogue, hotel dashboard, featured hotel, login and plans.
+The first screen uses a seven-layer harbour intro in `worker/harbor.js` and `worker/harbor.css`. Five responsive images and two silent clips are loaded from the supplied Higgs and CloudFront addresses. The skyline frames the animated HotelX wordmark. Visitors can describe a trip in the homepage search form to query the existing guest demo catalogue. Skip, pause and reduced-motion controls cover the intro and looping rain. Links lead to the existing catalogue, hotel dashboard, featured hotel, login and plans.
