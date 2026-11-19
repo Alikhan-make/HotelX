@@ -510,7 +510,9 @@ function landingSections() {
 }
 
 function renderLanding(viewClass = '') {
-  return '<div class="landing"><main><hotelx-harbor></hotelx-harbor><div class="harbor-demo-slot"></div>' +
+  return '<div class="landing' + viewClass + '"><nav class="landing-nav">' + brand() + '<div class="landing-links"><a href="#how">Как работает</a><a href="#plans">Тарифы</a><button class="btn-ghost" data-route="/app/explore">Для путешественников</button><button class="btn-ghost" data-route="/hotel/dashboard">Для отелей</button></div><div class="row"><button class="btn btn-ghost" data-route="/login">Войти</button><button class="btn btn-primary" data-route="/app/explore">Открыть HotelX</button></div></nav>' +
+    '<main><section class="landing-hero"><div class="landing-copy"><p class="eyebrow">Одна AI-платформа · две стороны рынка</p><h1>Нужный отель. <span>Верное решение.</span></h1><p>HotelX помогает гостям находить идеальное размещение, а отелям — прогнозировать спрос, управлять ценой и увеличивать выручку.</p><div class="hero-actions"><button class="btn btn-primary" data-route="/app/explore">' + icon('search') + ' Найти отель</button><button class="btn" data-route="/register?intent=manager">' + icon('building') + ' Подключить отель</button></div><div class="trust-row"><span>Объяснимый AI Match</span><span>Защищённые роли</span><span>Цены в тенге</span></div></div>' +
+    '<div class="hero-visual" aria-label="Современный отель"><div class="hero-match"><div class="match-ring"><span>94%</span></div><div><div class="ai-label" style="margin-bottom:4px">✦ Лучшее совпадение</div><h3>Aspan City Hotel</h3><p>Рядом с центром · завтрак включён · в рамках бюджета</p></div><button class="btn btn-sm btn-primary" data-route="/app/hotel/aspan-city">Подробнее</button></div></div></section>' +
     '<section class="value-strip" id="how"><div class="value-grid"><div class="value-item"><span class="value-number">01</span><div><h3>Спрос обычными словами</h3><p>Напишите пожелания — демопомощник подберёт отели и запомнит уточнения в диалоге.</p></div></div><div class="value-item"><span class="value-number">02</span><div><h3>Выбор с объяснением</h3><p>Сравните варианты и поймите, почему HotelX рекомендует именно этот отель.</p></div></div><div class="value-item"><span class="value-number">03</span><div><h3>Управление на данных</h3><p>Отель получает прогноз спроса и проверяемые рекомендации по цене.</p></div></div></div></section>' + landingSections() + '</main></div>';
 }
 
@@ -793,10 +795,6 @@ function render() {
     return;
   }
 
-  if (state.path === '/' && app.querySelector('hotelx-harbor')) {
-    $('#plans').outerHTML = renderSubscriptions();
-    return;
-  }
   if (state.path === '/') app.innerHTML = renderLanding(viewClass);
   else if (state.path === '/plans') app.innerHTML = guestShell(renderSubscriptions(), viewClass);
   else if (state.path === '/login') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderLogin(viewClass);
@@ -855,9 +853,7 @@ function render() {
     const banner = document.createElement('aside');
     banner.className = 'public-demo-banner';
     banner.innerHTML = '<strong>HotelX · открытая демоверсия</strong><span>Учебные данные. Брони, цены и настройки не сохраняются.</span><div><button class="btn btn-sm" data-route="/app/ai">Гость · помощник</button><button class="btn btn-sm" data-route="/hotel/ai">Владелец · помощник</button></div>';
-    const slot = app.querySelector('.harbor-demo-slot');
-    if (slot) slot.append(banner);
-    else app.prepend(banner);
+    app.prepend(banner);
   }
   bindForms();
   setupMotion();
@@ -890,10 +886,7 @@ async function submitAiSearch(event) {
   const prompt = $('#ai-search-input')?.value.trim();
   if (!prompt || state.assistantBusy.guest) return;
   const path = state.path;
-  const status = event.currentTarget.querySelector('[role="status"]');
-  if (status) status.textContent = 'Подбираем варианты…';
-  const result = await sendAssistant('guest', prompt, { reset: path === '/' || path === '/app/explore' });
-  if (status) status.textContent = result ? '' : 'Подбор не завершён. Попробуйте ещё раз.';
+  const result = await sendAssistant('guest', prompt, { reset: path === '/app/explore' });
   if (result && state.context === 'personal' && state.path === path) navigate('/app/search');
 }
 
