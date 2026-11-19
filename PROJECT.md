@@ -8,7 +8,7 @@ HotelX is a Kazakhstan-focused hospitality platform with two server-protected co
 
 ## Architecture
 
-The project is a Cloudflare Worker ESM application. The public landing presentation in `design/` uses React, TypeScript, Tailwind CSS and Framer Motion. Its HTML is rendered at build time, with an independently loaded interaction module. Local responsive WebP images illustrate the fictional catalogue. Guest and owner workspaces retain their existing router and data model. `worker/index.js` owns API routes, authentication/context checks, CSP and the HTML shell. `worker/app.js` owns the client router and views. `worker/styles.css` is the responsive design system. D1 migrations live in `drizzle/`; the build emits `dist/server/index.js` and packaged migrations.
+The project is a Cloudflare Worker ESM application with vanilla browser JavaScript and CSS. `worker/index.js` owns API routes, authentication/context checks, CSP and the HTML shell. `worker/app.js` owns the client router and views. `worker/styles.css` is the responsive design system. D1 migrations live in `drizzle/`; the build emits `dist/server/index.js` and packaged migrations.
 
 ## Data and demo boundaries
 

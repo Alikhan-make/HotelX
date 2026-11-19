@@ -6,23 +6,8 @@
     "dev": "bash scripts/build.sh && node scripts/preview-server.mjs",
     "build": "bash scripts/build.sh",
     "pretest": "npm run build",
-    "test": "node scripts/smoke-test.mjs && node scripts/d1-smoke-test.mjs && node scripts/assistant-test.mjs && node scripts/subscription-test.mjs && node scripts/editorial-test.mjs",
+    "test": "node scripts/smoke-test.mjs && node scripts/d1-smoke-test.mjs && node scripts/assistant-test.mjs && node scripts/subscription-test.mjs",
     "build:vercel": "node scripts/build-vercel.mjs",
-    "test:vercel": "npm run build:vercel && node scripts/vercel-test.mjs",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "framer-motion": "14.14.0",
-    "react": "19.3.1",
-    "react-dom": "19.3.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "4.3.5",
-    "@types/react": "19.3.0",
-    "@types/react-dom": "19.3.0",
-    "esbuild": "0.28.2",
-    "postcss": "8.5.33",
-    "tailwindcss": "4.3.5",
-    "typescript": "7.0.2"
+    "test:vercel": "npm run build:vercel && node scripts/vercel-test.mjs"
   }
 }

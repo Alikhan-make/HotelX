@@ -151,6 +151,22 @@ function setupMotion() {
   });
   if (motionBound) return;
   motionBound = true;
+  let pointerFrame = 0;
+  window.addEventListener('pointermove', (event) => {
+    if (event.pointerType === 'touch' || reducedMotionQuery.matches) return;
+    if (pointerFrame) return;
+    pointerFrame = requestAnimationFrame(() => {
+      const hero = $('.hero-visual');
+      if (hero) {
+        const rect = hero.getBoundingClientRect();
+          const x = Math.max(-1, Math.min(1, (event.clientX - rect.left) / rect.width - 0.5)) * 10;
+          const y = Math.max(-1, Math.min(1, (event.clientY - rect.top) / rect.height - 0.5)) * 8;
+        hero.style.setProperty('--pointer-x', x.toFixed(2) + 'px');
+        hero.style.setProperty('--pointer-y', y.toFixed(2) + 'px');
+      }
+      pointerFrame = 0;
+    });
+  }, { passive: true });
   window.addEventListener('scroll', () => {
     const max = document.documentElement.scrollHeight - window.innerHeight;
     const progress = max > 0 ? window.scrollY / max : 0;
@@ -487,28 +503,17 @@ function cancelSubscription() {
   if (state.subscription && saveDemoSubscription(null)) toast('Демо-подписка отменена', 'Сохранённый выбор сброшен. Списаний не было.', 'success');
 }
 
-const editorialHtml = "__HOTELX_EDITORIAL_HTML__";
-let mountedEditorial = null;
-let unmountEditorial = null;
-
-function enhanceEditorial(node) {
-  mountedEditorial = node;
-  import('/assets/__HOTELX_EDITORIAL_FILE__').then(({ mount }) => {
-    if (mountedEditorial === node && node.isConnected) unmountEditorial = mount(node);
-  }).catch(() => {
-    // Catalogue and workspace links work with the pre-rendered presentation.
-    if (node.isConnected) node.querySelector('.hx-tabs')?.setAttribute('hidden', '');
-  });
+function landingSections() {
+  return '<section class="landing-platform"><div class="section-head"><div><p class="eyebrow">HOTELX PLATFORM</p><h2>Один рабочий контур для отеля и гостя</h2><p>Публичный каталог и приватная аналитика разделены ролями и серверными разрешениями.</p></div><span class="badge badge-warning">MVP · Demo data</span></div><div class="platform-grid"><article class="card"><div class="report-icon">' + icon('chart') + '</div><h3>Для владельца</h3><p class="muted">Загрузка, ADR, RevPAR, прогноз спроса и рекомендации по ценам с подтверждением перед применением.</p><button class="btn btn-sm" data-route="/hotel/dashboard">Открыть dashboard</button></article><article class="card"><div class="report-icon">' + icon('search') + '</div><h3>Для путешественника</h3><p class="muted">Диалог о поездке, подбор по демо-каталогу, сравнение, избранное и прозрачная демо-бронь.</p><button class="btn btn-sm btn-primary" data-route="/app/explore">Найти отель</button></article><article class="card"><div class="report-icon">' + icon('shield') + '</div><h3>Безопасность по умолчанию</h3><p class="muted">Guest не видит revenue и owner API. Доступ к отелю выдаётся только после серверной верификации.</p><button class="btn btn-sm" data-route="/register?intent=manager">Подключить отель</button></article></div></section>' +
+    '<section class="landing-how"><div><p class="eyebrow">КАК ЭТО РАБОТАЕТ</p><h2>От запроса до решения за несколько шагов</h2></div><div class="how-grid"><div><span>01</span><strong>Опишите поездку</strong><p>Город, бюджет, даты и удобства обычными словами.</p></div><div><span>02</span><strong>Сравните варианты</strong><p>AI объясняет совпадение и показывает компромиссы.</p></div><div><span>03</span><strong>Примите решение</strong><p>Гость бронирует демо-вариант, владелец подтверждает изменения цены.</p></div></div></section>' +
+    renderSubscriptions() + '<section class="landing-faq"><div><p class="eyebrow">FAQ</p><h2>Прозрачный MVP</h2></div><div class="faq-list"><details><summary>Это реальные цены и наличие?</summary><p>Нет. Публичный каталог явно помечен как демо до подключения PMS или channel manager.</p></details><details><summary>AI сам меняет цену?</summary><p>Нет. Рекомендация показывает объяснение и ждёт подтверждения владельца.</p></details><details><summary>Есть ли настоящий 360°-тур?</summary><p>Пока нет. В карточке доступен фото-тур с явной пометкой demo; панорамы можно подключить позже.</p></details></div></section><footer class="landing-footer"><span>© 2026 HotelX</span><span>Казахстан · KZT · Русский по умолчанию</span><button class="link" data-route="/login">Войти</button></footer>';
 }
 
-function landingDetails() {
-  return '<div id="hx-demo"></div>' + renderSubscriptions() +
-    '<section class="hx-faq"><h2>Вопросы и ответы</h2><div><details><summary>Это реальные цены и наличие?</summary><p>В каталоге представлены демонстрационные цены и наличие номеров.</p></details><details><summary>Кто подтверждает изменение цен?</summary><p>Помощник объясняет рекомендацию. Решение принимает владелец отеля.</p></details><details><summary>Можно посмотреть номер до выбора?</summary><p>Откройте карточку отеля и запустите демонстрационный фототур.</p></details></div></section>' +
-    '<footer class="hx-footer"><a href="/" data-route="/" class="hx-logo">Hotel<span>X</span></a><span>© 2026 HotelX · Казахстан</span><a class="hx-text-link" href="/login" data-route="/login">Войти</a></footer>';
-}
-
-function renderLanding() {
-  return '<main class="hx"><div id="hx-editorial">' + editorialHtml + '</div>' + landingDetails() + '</main>';
+function renderLanding(viewClass = '') {
+  return '<div class="landing' + viewClass + '"><nav class="landing-nav">' + brand() + '<div class="landing-links"><a href="#how">Как работает</a><a href="#plans">Тарифы</a><button class="btn-ghost" data-route="/app/explore">Для путешественников</button><button class="btn-ghost" data-route="/hotel/dashboard">Для отелей</button></div><div class="row"><button class="btn btn-ghost" data-route="/login">Войти</button><button class="btn btn-primary" data-route="/app/explore">Открыть HotelX</button></div></nav>' +
+    '<main><section class="landing-hero"><div class="landing-copy"><p class="eyebrow">Одна AI-платформа · две стороны рынка</p><h1>Нужный отель. <span>Верное решение.</span></h1><p>HotelX помогает гостям находить идеальное размещение, а отелям — прогнозировать спрос, управлять ценой и увеличивать выручку.</p><div class="hero-actions"><button class="btn btn-primary" data-route="/app/explore">' + icon('search') + ' Найти отель</button><button class="btn" data-route="/register?intent=manager">' + icon('building') + ' Подключить отель</button></div><div class="trust-row"><span>Объяснимый AI Match</span><span>Защищённые роли</span><span>Цены в тенге</span></div></div>' +
+    '<div class="hero-visual" aria-label="Современный отель"><div class="hero-match"><div class="match-ring"><span>94%</span></div><div><div class="ai-label" style="margin-bottom:4px">✦ Лучшее совпадение</div><h3>Aspan City Hotel</h3><p>Рядом с центром · завтрак включён · в рамках бюджета</p></div><button class="btn btn-sm btn-primary" data-route="/app/hotel/aspan-city">Подробнее</button></div></div></section>' +
+    '<section class="value-strip" id="how"><div class="value-grid"><div class="value-item"><span class="value-number">01</span><div><h3>Спрос обычными словами</h3><p>Напишите пожелания — демопомощник подберёт отели и запомнит уточнения в диалоге.</p></div></div><div class="value-item"><span class="value-number">02</span><div><h3>Выбор с объяснением</h3><p>Сравните варианты и поймите, почему HotelX рекомендует именно этот отель.</p></div></div><div class="value-item"><span class="value-number">03</span><div><h3>Управление на данных</h3><p>Отель получает прогноз спроса и проверяемые рекомендации по цене.</p></div></div></div></section>' + landingSections() + '</main></div>';
 }
 
 function renderExplore() {
@@ -780,12 +785,6 @@ function renderAdminSystem(kind) {
 
 function render() {
   const app = $('#app');
-  const isLanding = state.me && state.path === '/';
-  if (mountedEditorial && !isLanding) {
-    unmountEditorial?.();
-    mountedEditorial = null;
-    unmountEditorial = null;
-  }
   const viewClass = state.me || state.error ? viewEnterClass() : '';
   if (!state.me) {
     if (state.error?.status === 401 || state.path === '/login') app.innerHTML = renderLogin(viewClass);
@@ -796,17 +795,7 @@ function render() {
     return;
   }
 
-  if (isLanding) {
-    if (mountedEditorial && app.contains(mountedEditorial)) {
-      $('#plans').outerHTML = renderSubscriptions();
-      bindForms();
-      return;
-    }
-    const existing = $('#hx-editorial');
-    if (existing && !$('#plans')) existing.insertAdjacentHTML('afterend', landingDetails());
-    else app.innerHTML = renderLanding();
-    enhanceEditorial($('#hx-editorial'));
-  }
+  if (state.path === '/') app.innerHTML = renderLanding(viewClass);
   else if (state.path === '/plans') app.innerHTML = guestShell(renderSubscriptions(), viewClass);
   else if (state.path === '/login') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderLogin(viewClass);
   else if (state.path === '/register') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderRegister(viewClass);
@@ -859,16 +848,12 @@ function render() {
     else if (state.path === '/admin/settings') content = renderAdminSystem('settings');
     else content = notFound();
     app.innerHTML = workspaceShell(content, true, viewClass);
-  } else {
-    app.innerHTML = renderLanding();
-    enhanceEditorial($('#hx-editorial'));
-  }
+  } else app.innerHTML = renderLanding(viewClass);
   if (state.me.publicDemo) {
     const banner = document.createElement('aside');
     banner.className = 'public-demo-banner';
     banner.innerHTML = '<strong>HotelX · открытая демоверсия</strong><span>Учебные данные. Брони, цены и настройки не сохраняются.</span><div><button class="btn btn-sm" data-route="/app/ai">Гость · помощник</button><button class="btn btn-sm" data-route="/hotel/ai">Владелец · помощник</button></div>';
-    if (isLanding) $('#hx-demo').append(banner);
-    else app.prepend(banner);
+    app.prepend(banner);
   }
   bindForms();
   setupMotion();
@@ -1116,7 +1101,6 @@ async function downloadVerificationDocument(button) {
 
 document.addEventListener('click', async (event) => {
   const route = event.target.closest('[data-route]');
-  if (route && !state.me && route.tagName === 'A') return;
   if (route) { event.preventDefault(); if (!route.disabled) navigate(route.dataset.route); return; }
   const context = event.target.closest('[data-context]');
   if (context) { setContext(context.dataset.context); return; }

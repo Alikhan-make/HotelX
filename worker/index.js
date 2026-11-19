@@ -2,10 +2,7 @@ import { assistantInput, guestDemoReply, hotelDemoTopic, hotelDemoReply } from "
 
 const STYLES = "__HOTELX_STYLES__";
 const APP_JS = "__HOTELX_APP_JS__";
-const MEDIA = "__HOTELX_EDITORIAL_MEDIA__";
-const EDITORIAL_FILE = "__HOTELX_EDITORIAL_FILE__";
-const EDITORIAL_JS = "__HOTELX_EDITORIAL_JS__";
-const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#254d40"/><stop offset="1" stop-color="#465b3f"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="24" font-weight="700">HX</text></svg>`;
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#315efb"/><stop offset="1" stop-color="#7657e8"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="24" font-weight="700">HX</text></svg>`;
 
 const CORE_HOTELS = [
   {
@@ -733,11 +730,9 @@ async function handleApi(request, url, env) {
   return apiError(404, "NOT_FOUND", "Маршрут API не найден.");
 }
 
-const EDITORIAL_HTML = "__HOTELX_EDITORIAL_HTML__";
-const BOOT = '<div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Загружаем ваш контекст…</span></div></div>';
 const PAGE = `<!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#233e35"><meta name="description" content="HotelX — AI-платформа для поиска отелей, бронирования и управления гостиничным бизнесом."><title>HotelX — AI для гостей и отелей</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/styles.css?v=__HOTELX_ASSET_VERSION__"></head>
-<body><div id="app">${BOOT}</div><div id="toast-region" class="toast-region" aria-live="polite"></div><div id="modal-root"></div><div id="scroll-progress" aria-hidden="true"></div><script src="/assets/app.js?v=__HOTELX_ASSET_VERSION__" defer></script></body></html>`;
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#101828"><meta name="description" content="HotelX — AI-платформа для поиска отелей, бронирования и управления гостиничным бизнесом."><title>HotelX — AI для гостей и отелей</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/styles.css?v=__HOTELX_ASSET_VERSION__"></head>
+<body><div id="app"><div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Загружаем ваш контекст…</span></div></div></div><div id="toast-region" class="toast-region" aria-live="polite"></div><div id="modal-root"></div><div id="scroll-progress" aria-hidden="true"></div><script src="/assets/app.js?v=__HOTELX_ASSET_VERSION__" defer></script></body></html>`;
 
 const SECURITY_HEADERS = {
   "content-security-policy": "default-src 'self'; img-src 'self' https://images.unsplash.com data:; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; object-src 'none'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
@@ -755,20 +750,10 @@ export default {
         return apiError(500, "INTERNAL_ERROR", "Сервис временно не смог обработать запрос. Повторите попытку.");
       }
     }
-    if (url.pathname === "/assets/" + EDITORIAL_FILE) {
-      return new Response(EDITORIAL_JS, { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "public, max-age=31536000, immutable", ...SECURITY_HEADERS } });
-    }
-    const mediaName = url.pathname.startsWith("/assets/") ? url.pathname.slice(8) : "";
-    if (Object.hasOwn(MEDIA, mediaName)) {
-      const bytes = Uint8Array.from(atob(MEDIA[mediaName]), char => char.charCodeAt(0));
-      return new Response(bytes, { headers: { "content-type": "image/webp", "cache-control": "public, max-age=86400", ...SECURITY_HEADERS } });
-    }
     if (url.pathname === "/assets/styles.css") return new Response(STYLES, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=31536000, immutable", ...SECURITY_HEADERS } });
     if (url.pathname === "/assets/app.js") return new Response(APP_JS, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=31536000, immutable", ...SECURITY_HEADERS } });
     if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return new Response(FAVICON, { headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=86400", ...SECURITY_HEADERS } });
     if (url.pathname.includes(".")) return new Response("Not found", { status: 404, headers: SECURITY_HEADERS });
-    const home = url.pathname === "/" && env?.HOTELX_PUBLIC_PRESENTATION === "1";
-    const html = home ? PAGE.replace(BOOT, () => '<main class="hx"><div id="hx-editorial">' + EDITORIAL_HTML + '</div></main>') : PAGE;
-    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...SECURITY_HEADERS } });
+    return new Response(PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...SECURITY_HEADERS } });
   }
 };

@@ -22,7 +22,7 @@ export default {
     if (url.pathname.startsWith("/admin") || /\/signin-with-chatgpt|\/signout-with-chatgpt|^\/callback$/.test(url.pathname)) return Response.redirect(new URL("/app/explore", url), 302);
     const body = !["GET", "HEAD"].includes(request.method) ? await request.arrayBuffer() : undefined;
     const response = await worker.fetch(new Request(url, { method: request.method, headers, body }), {
-      HOTELX_LOCAL_PREVIEW: "1", HOTELX_PUBLIC_PRESENTATION: "1", HOTELX_PLATFORM_OWNER_EMAIL: "demo@hotelx.invalid"
+      HOTELX_LOCAL_PREVIEW: "1", HOTELX_PLATFORM_OWNER_EMAIL: "demo@hotelx.invalid"
     });
     if (url.pathname === "/api/me" && response.ok) {
       const me = await response.json();
