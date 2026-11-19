@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import worker from '../dist/server/index.js';
+import { readFile } from 'node:fs/promises';
+
+const request = path => worker.fetch(new Request('https://hotelx.test' + path), {});
+const page = await request('/');
+const html = await page.text();
+const policy = page.headers.get('content-security-policy');
+const header = JSON.parse(await readFile(new URL('../vercel.json',import.meta.url))).headers[0].headers.find(h=>h.key==='Content-Security-Policy');
+assert.equal(policy,header.value);
+assert.match(policy,/script-src 'self';/);
+assert.match(policy,/media-src 'self' https:\/\/d8j0ntlcm91z4\.cloudfront\.net;/);
+assert.match(html,/rel="preload" as="font"/);
+assert.doesNotMatch(await (await request('/app/explore')).text(),/as="font"/);
+const app = await (await request('/assets/app.js')).text();
+assert.match(app,/customElements\.define\('hotelx-harbor', HotelXHarbor\)/);
+assert.match(app,/<hotelx-harbor><\/hotelx-harbor>/);
+assert.equal((app.match(/https:\/\/images\.higgs\.ai\//g)||[]).length,5);
+assert.equal((app.match(/https:\/\/d8j0ntlcm91z4\.cloudfront\.net\/[^"\s]+\.mp4/g)||[]).length,2);
+console.log('PASS home-only preload, cinematic assets and matching Vercel/Worker security policies');

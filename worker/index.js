@@ -735,7 +735,7 @@ const PAGE = `<!doctype html>
 <body><div id="app"><div class="boot"><div class="brand-mark">HX</div><div><strong>HotelX</strong><span>Загружаем ваш контекст…</span></div></div></div><div id="toast-region" class="toast-region" aria-live="polite"></div><div id="modal-root"></div><div id="scroll-progress" aria-hidden="true"></div><script src="/assets/app.js?v=__HOTELX_ASSET_VERSION__" defer></script></body></html>`;
 
 const SECURITY_HEADERS = {
-  "content-security-policy": "default-src 'self'; img-src 'self' https://images.unsplash.com data:; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; object-src 'none'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  "content-security-policy": "default-src 'self'; img-src 'self' https://images.unsplash.com https://images.higgs.ai data:; media-src 'self' https://d8j0ntlcm91z4.cloudfront.net; font-src 'self' https://fonts.gstatic.com; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; object-src 'none'; connect-src 'self'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
   "referrer-policy": "strict-origin-when-cross-origin", "x-content-type-options": "nosniff", "x-frame-options": "DENY", "permissions-policy": "camera=(), microphone=(), geolocation=()"
 };
 
@@ -754,6 +754,7 @@ export default {
     if (url.pathname === "/assets/app.js") return new Response(APP_JS, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=31536000, immutable", ...SECURITY_HEADERS } });
     if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return new Response(FAVICON, { headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=86400", ...SECURITY_HEADERS } });
     if (url.pathname.includes(".")) return new Response("Not found", { status: 404, headers: SECURITY_HEADERS });
-    return new Response(PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...SECURITY_HEADERS } });
+    const html = url.pathname === "/" ? PAGE.replace("</head>", '<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2"></head>') : PAGE;
+    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...SECURITY_HEADERS } });
   }
 };
