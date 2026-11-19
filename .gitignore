@@ -9,3 +9,5 @@ vercel/worker.generated.js
 .env
 .env.*
 !.env.example
+
+node_modules/
