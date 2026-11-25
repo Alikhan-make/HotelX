@@ -20,12 +20,13 @@ Import `Alikhan-make/HotelX`, branch `main`:
 
 Demo entry points:
 
-- `/app/ai` — traveller assistant and catalogue
+- `/` opens the hotel workspace. Former traveller URLs under `/app` redirect to the hotel dashboard.
 - `/hotel/ai` — hotel owner assistant
 - `/hotel/dashboard` — hotel demo dashboard
-- `/plans` — illustrative SaaS subscriptions; also available on the landing page and at `/hotel/subscription`. Starter (19,900 KZT/month), Pro (49,900) and Enterprise (99,900) offer monthly or annual demo billing, with a 20% annual discount. Confirmed choices and cancellation persist in this browser only; no card, payment, automatic renewal, or permission changes.
+- `/admin/dashboard` — read-only platform demo with synthetic verification requests, users and hotels. Open it from the demo banner or the profile switcher.
+- `/plans` — illustrative SaaS subscriptions; opens in the hotel workspace at `/hotel/subscription`. Starter (19,900 KZT/month), Pro (49,900) and Enterprise (99,900) offer monthly or annual demo billing, with a 20% annual discount. Confirmed choices and cancellation persist in this browser only; no card, payment, automatic renewal, or permission changes.
 
-A persistent demo notice provides links to both assistants. No registration is needed. Everyone sees the same **fixture** hotel identity; this is not real authentication. Admin APIs and database writes are disabled. Bookings, tariff changes, verification uploads and other writes return a clear `DEMO_READ_ONLY` error. Do not upload personal documents. Chat history and browsing state stay in the browser; there is no connected database, PMS, payment provider or external AI service.
+A persistent demo notice links to the hotel dashboard, hotel assistant and platform demo. No registration is needed. Everyone sees the same **fixture** hotel identity; this is not real authentication. Admin APIs and database writes are disabled. Bookings, tariff changes, verification uploads and other writes return a clear `DEMO_READ_ONLY` error. Do not upload personal documents. Chat history and browsing state stay in the browser; there is no connected database, PMS, payment provider or external AI service.
 
 The adapter never imports Sites credentials, DB bindings, secrets, or real user data. Incoming identity headers are replaced with the fixed demo identity.
 

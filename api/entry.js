@@ -1,4 +1,6 @@
-import worker from "../vercel/worker.generated.js";
+import worker, { demoVerificationFixtures } from "../vercel/worker.generated.js";
+
+import { demoWorkspacePath } from "../worker/demo-workspace.js";
 
 // This deployment exposes fixture data only. No identity, DB or secrets from Sites.
 export default {
@@ -19,14 +21,29 @@ export default {
     if (url.pathname.startsWith("/api/admin/") || url.pathname.startsWith("/api/verifications") || url.pathname === "/api/applications" || (!["GET", "HEAD"].includes(request.method) && !(request.method === "POST" && allowedPosts.includes(url.pathname)))) {
       return Response.json({ error: "DEMO_READ_ONLY", message: "Это открытая демоверсия. Бронирования, цены, документы и настройки не сохраняются." }, { status: 403, headers: { "cache-control": "no-store" } });
     }
-    if (url.pathname.startsWith("/admin") || /\/signin-with-chatgpt|\/signout-with-chatgpt|^\/callback$/.test(url.pathname)) return Response.redirect(new URL("/app/explore", url), 302);
+    if (url.pathname === "/api/demo/platform/verifications" && request.method === "GET") {
+      if (headers.get("x-hotelx-context") !== "platform") {
+        return Response.json({ error: "WRONG_CONTEXT" }, { status: 403 });
+      }
+      return Response.json({ demo: true, verifications: demoVerificationFixtures });
+    }
+    const isPage = !url.pathname.startsWith("/api/") && !url.pathname.startsWith("/assets/") &&
+      (!url.pathname.includes(".") || url.pathname === "/index.html" || url.pathname.startsWith("/app/"));
+    if (isPage) {
+      const destination = demoWorkspacePath(url.pathname);
+      if (destination !== url.pathname) return Response.redirect(new URL(destination, url), 302);
+    }
     const body = !["GET", "HEAD"].includes(request.method) ? await request.arrayBuffer() : undefined;
     const response = await worker.fetch(new Request(url, { method: request.method, headers, body }), {
-      HOTELX_LOCAL_PREVIEW: "1", HOTELX_PLATFORM_OWNER_EMAIL: "demo@hotelx.invalid"
+      HOTELX_WORKSPACE_DEMO: true, HOTELX_LOCAL_PREVIEW: "1", HOTELX_PLATFORM_OWNER_EMAIL: "demo@hotelx.invalid"
     });
     if (url.pathname === "/api/me" && response.ok) {
       const me = await response.json();
-      me.contexts = me.contexts.filter((context) => context.id !== "platform");
+      me.defaultContext = "business";
+      me.contexts = me.contexts.filter(context => context.id !== "personal").map(context => context.id === "platform" ? {
+        id: "platform", label: "HotelX Platform", subtitle: "Суперадмин · демопросмотр",
+        role: "DEMO_VIEWER", home: "/admin/dashboard"
+      } : context);
       me.publicDemo = true;
       me.privatePrototype = false;
       return Response.json(me, { headers: { "cache-control": "no-store" } });

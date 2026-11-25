@@ -13,8 +13,10 @@ async function call(path, { method = "GET", context = "personal", body, origin }
 const me = await (await call("/api/me")).json();
 assert.equal(me.publicDemo, true);
 assert.equal(me.user.id, "public-demo-visitor");
-assert.deepEqual(me.contexts.map((x) => x.id), ["personal", "business"]);
-for (const path of ["/", "/plans", "/hotel/subscription", "/app/ai", "/hotel/ai", "/hotel/dashboard", "/app/search", "/login", "/register"]) {
+assert.deepEqual(me.contexts.map((x) => x.id), ["business", "platform"]);
+assert.equal(me.contexts.find(x => x.id === "platform").role, "DEMO_VIEWER");
+assert.equal(me.defaultContext, "business");
+for (const path of ["/hotel/subscription", "/hotel/ai", "/hotel/dashboard", "/admin/dashboard", "/admin/verifications", "/admin/users", "/admin/hotels", "/admin/errors", "/admin/settings"]) {
   const res = await call(path);
   assert.equal(res.status, 200, path);
   assert.match(res.headers.get("content-type"), /text\/html/);
@@ -41,8 +43,23 @@ for (const path of ["/api/bookings", "/api/applications", "/api/hotels/aspan-cit
   assert.equal((await res.json()).error, "DEMO_READ_ONLY");
 }
 assert.equal((await call("/api/admin/verifications", { context: "platform" })).status, 403);
-assert.equal((await call("/signin-with-chatgpt")).status, 302);
-assert.equal((await call("/admin/dashboard")).status, 302);
+for (const path of ["/", "/app", "/app/ai", "/app/search", "/app/hotel/aspan-city/booking", "/app/favorites", "/login", "/register", "/signin-with-chatgpt", "/index.html"]) {
+  const redirect = await call(path);
+  assert.equal(redirect.status, 302, path);
+  assert.equal(new URL(redirect.headers.get("location")).pathname, "/hotel/dashboard", path);
+}
+assert.equal(new URL((await call("/plans")).headers.get("location")).pathname, "/hotel/subscription");
+assert.equal((await call("/admin")).headers.get("location"), "https://hotelx-demo.example/admin/dashboard");
+const fixturePath = "/api/demo/platform/verifications";
+assert.equal((await call(fixturePath)).status, 403);
+const preview = await (await call(fixturePath, { context: "platform" })).json();
+assert.equal(preview.demo, true);
+assert.ok(preview.verifications.some(v => v.id === "VR-1028"));
+for (const [path, method] of [[fixturePath, "POST"], ["/api/admin/verifications/VR-1028/documents/identity", "GET"], ["/api/admin/verifications/VR-1028/approve", "POST"]]) {
+  const blocked = await call(path, { method, context: "platform" });
+  assert.equal(blocked.status, 403);
+  assert.equal((await blocked.json()).error, "DEMO_READ_ONLY");
+}
 assert.equal((await call("/assets/missing.js")).status, 404);
 for (const file of ["public/index.html", "public/assets/app.js", "public/assets/styles.css", "public/favicon.svg", "vercel/worker.generated.js"]) await access(new URL("../" + file, import.meta.url));
 const config = JSON.parse(await readFile(new URL("../vercel.json", import.meta.url)));

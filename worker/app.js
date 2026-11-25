@@ -259,6 +259,7 @@ function setContext(id, goHome = true) {
 
 function navigate(path) {
   const target = new URL(path, location.origin);
+  if (state.me?.publicDemo) target.pathname = demoWorkspacePath(target.pathname);
   if (target.pathname === '/register') state.intent = target.searchParams.get('intent') === 'manager' ? 'manager' : state.intent;
   const needed = requiredContext(target.pathname);
   if (state.me && needed !== state.context) {
@@ -311,7 +312,8 @@ async function hydrateRoute() {
     if (path === '/hotel/recommendations' && !state.recommendations) state.recommendations = (await api('/api/hotels/aspan-city/recommendations')).recommendations;
   }
   if (path.startsWith('/admin') && !state.verifications) {
-    state.verifications = (await api('/api/admin/verifications')).verifications;
+    const endpoint = state.me.publicDemo ? '/api/demo/platform/verifications' : '/api/admin/verifications';
+    state.verifications = (await api(endpoint)).verifications;
     state.selectedVerification = state.selectedVerification || state.verifications[0]?.id;
   }
   state.loading = false;
@@ -324,7 +326,8 @@ function brand(dark = false) {
 
 function contextPopover(guest = false) {
   if (!state.contextMenu || !state.me) return '';
-  return '<div id="profile-menu" class="context-popover ' + (guest || state.contextMenuAnchor === 'top' ? 'guest-context' : '') + '"><a class="context-item subscription-menu-item" href="/plans" data-route="/plans"><span class="avatar">' + icon('card') + '</span><span class="grow"><strong>Подключить подписку</strong><span>Тарифы HotelX · демо</span></span>' + icon('chevron') + '</a><div class="divider" style="margin:7px 3px"></div><div class="text-xs muted" style="padding:8px 11px 5px;font-weight:800">КОНТЕКСТ ДОСТУПА</div>' + state.me.contexts.map((context) =>
+  const plansPath = state.me.publicDemo ? '/hotel/subscription' : '/plans';
+  return '<div id="profile-menu" class="context-popover ' + (guest || state.contextMenuAnchor === 'top' ? 'guest-context' : '') + '"><a class="context-item subscription-menu-item" href="' + plansPath + '" data-route="' + plansPath + '"><span class="avatar">' + icon('card') + '</span><span class="grow"><strong>Подключить подписку</strong><span>Тарифы HotelX · демо</span></span>' + icon('chevron') + '</a><div class="divider" style="margin:7px 3px"></div><div class="text-xs muted" style="padding:8px 11px 5px;font-weight:800">КОНТЕКСТ ДОСТУПА</div>' + state.me.contexts.map((context) =>
     '<button class="context-item ' + (context.id === state.context ? 'active' : '') + '" data-context="' + context.id + '"><span class="avatar">' + initials(context.label) + '</span><span class="grow"><strong>' + esc(context.label) + '</strong><span>' + esc(context.subtitle) + '</span></span>' + (context.id === state.context ? '<span class="context-tag">Активен</span>' : '') + '</button>'
   ).join('') + '<div class="divider" style="margin:7px 3px"></div><div class="text-xs muted" style="padding:3px 11px 8px">Контексты назначены сервером. Выбор не изменяет роль.</div></div>';
 }
@@ -750,7 +753,7 @@ function renderVerificationCenter() {
 
 function renderAdminDashboard() {
   const verifications = state.verifications || [];
-  return '<div class="page-head"><div><p class="eyebrow">PLATFORM CONTROL</p><h1>Обзор HotelX</h1><p>Состояние маркетплейса и очередь ручной проверки.</p></div><span class="badge badge-success">● Все системы работают</span></div><div class="admin-stats">' + kpiCard('Пользователи', '12 480', '14.2%', 'users') + kpiCard('Отели', '286', '8.6%', 'building') + kpiCard('Бронирования', '3 914', '18.4%', 'booking') + kpiCard('На проверке', String(verifications.filter((v) => v.status !== 'APPROVED').length), '1', 'shield') + '</div><div class="dashboard-grid"><section class="card chart-card"><div class="row-between"><div><h2>Активность платформы</h2><p class="muted text-sm">Бронирования за 12 недель</p></div><span class="badge badge-brand">+18.4%</span></div><div class="chart">' + [46,51,49,58,62,68,65,73,79,82,88,94].map((value, index) => '<div class="bar" style="height:' + value + '%"><span>' + (index + 1) + '</span></div>').join('') + '</div></section><aside class="card"><div class="row-between"><div><h2>Очередь проверки</h2><p class="muted text-sm">Требует внимания</p></div><button class="link" data-route="/admin/verifications">Открыть →</button></div><div class="stack" style="margin-top:18px">' + verifications.map((item) => '<button class="context-item" data-route="/admin/verifications"><span class="avatar">' + initials(item.hotel) + '</span><span class="grow"><strong>' + esc(item.hotel) + '</strong><span>' + esc(item.applicant) + ' · ' + item.submitted + '</span></span><span class="status ' + item.status + '">' + statusText(item.status) + '</span></button>').join('') + '</div></aside></div><section class="section card"><div class="row-between wrap"><div><div class="ai-label">✦ Платформенная безопасность</div><h2 style="margin-bottom:6px">Гостевой AI отделён от приватных данных</h2><p class="muted" style="margin:0">Публичные ответы содержат только availability, цены, удобства, локацию и отзывы. Revenue и внутренние рекомендации не покидают hotel context.</p></div><button class="btn" data-action="security-test">Проверить 403</button></div></section>';
+  return '<div class="page-head"><div><p class="eyebrow">PLATFORM CONTROL</p><h1>Обзор HotelX</h1><p>Состояние маркетплейса и очередь ручной проверки.</p></div><span class="badge badge-success">● Все системы работают</span></div><div class="admin-stats">' + kpiCard('Пользователи', '12 480', '14.2%', 'users') + kpiCard('Отели', '286', '8.6%', 'building') + kpiCard('Бронирования', '3 914', '18.4%', 'booking') + kpiCard('На проверке', String(verifications.filter((v) => v.status !== 'APPROVED').length), '1', 'shield') + '</div><div class="dashboard-grid"><section class="card chart-card"><div class="row-between"><div><h2>Активность платформы</h2><p class="muted text-sm">Бронирования за 12 недель</p></div><span class="badge badge-brand">+18.4%</span></div><div class="chart">' + [46,51,49,58,62,68,65,73,79,82,88,94].map((value, index) => '<div class="bar" style="height:' + value + '%"><span>' + (index + 1) + '</span></div>').join('') + '</div></section><aside class="card"><div class="row-between"><div><h2>Очередь проверки</h2><p class="muted text-sm">Требует внимания</p></div><button class="link" data-route="/admin/verifications">Открыть →</button></div><div class="stack" style="margin-top:18px">' + verifications.map((item) => '<button class="context-item" data-route="/admin/verifications" data-review-id="' + esc(item.id) + '"><span class="avatar">' + initials(item.hotel) + '</span><span class="grow"><strong>' + esc(item.hotel) + '</strong><span>' + esc(item.applicant) + ' · ' + item.submitted + '</span></span><span class="status ' + item.status + '">' + statusText(item.status) + '</span></button>').join('') + '</div></aside></div><section class="section card"><div class="row-between wrap"><div><div class="ai-label">✦ Платформенная безопасность</div><h2 style="margin-bottom:6px">Гостевой AI отделён от приватных данных</h2><p class="muted" style="margin:0">Публичные ответы содержат только availability, цены, удобства, локацию и отзывы. Revenue и внутренние рекомендации не покидают hotel context.</p></div><button class="btn" data-action="security-test">Проверить 403</button></div></section>';
 }
 
 function renderVerifications() {
@@ -766,7 +769,8 @@ function documentKind(label) {
 }
 
 function reviewPanel(item) {
-  return '<aside class="card review-panel"><div class="row-between"><div><span class="text-xs muted">ЗАЯВКА ' + item.id + '</span><h2 style="margin:5px 0">' + esc(item.hotel) + '</h2></div><span class="status ' + item.status + '">' + statusText(item.status) + '</span></div>' + (item.note ? '<div class="ai-card" style="padding:13px;margin:15px 0"><p class="text-xs" style="margin:0">' + esc(item.note) + '</p></div>' : '<div class="divider"></div>') + '<h4>Заявитель</h4><div class="detail-list"><div class="detail-item"><span>Имя</span><strong>' + esc(item.applicant) + '</strong></div><div class="detail-item"><span>Email</span><strong>' + esc(item.email) + '</strong></div><div class="detail-item"><span>Телефон</span><strong>' + esc(item.phone) + '</strong></div></div><div class="divider"></div><h4>Отель</h4><div class="detail-list"><div class="detail-item"><span>Адрес</span><strong>' + esc(item.address) + '</strong></div><div class="detail-item"><span>Сайт</span><strong>' + esc(item.website) + '</strong></div><div class="detail-item"><span>Номеров</span><strong>' + item.rooms + '</strong></div></div><div class="divider"></div><h4>Документы</h4><div class="document-list">' + (item.documents.length ? item.documents.map((document) => '<div class="document">' + icon('file') + '<span class="grow text-sm">' + esc(document) + '</span><button class="btn btn-icon btn-sm" title="Скачать защищённый документ" data-action="view-document" data-id="' + item.id + '" data-kind="' + documentKind(document) + '">' + icon('download') + '</button></div>').join('') : '<p class="text-sm muted">Документы ещё не загружены.</p>') + '</div><div class="modal-actions" style="display:grid;grid-template-columns:1fr 1fr"><button class="btn btn-danger" data-admin-action="reject" data-id="' + item.id + '">Отклонить</button><button class="btn" data-admin-action="request-info" data-id="' + item.id + '">Запросить данные</button><button class="btn btn-primary" style="grid-column:1/-1" data-admin-action="approve" data-id="' + item.id + '">' + icon('check') + ' Одобрить отель</button></div></aside>';
+  const documentControl = state.me.publicDemo ? 'disabled aria-label="Демо: доступен только список документов"' : 'title="Скачать защищённый документ" data-action="view-document"';
+  return '<aside class="card review-panel"><div class="row-between"><div><span class="text-xs muted">ЗАЯВКА ' + item.id + '</span><h2 style="margin:5px 0">' + esc(item.hotel) + '</h2></div><span class="status ' + item.status + '">' + statusText(item.status) + '</span></div>' + (item.note ? '<div class="ai-card" style="padding:13px;margin:15px 0"><p class="text-xs" style="margin:0">' + esc(item.note) + '</p></div>' : '<div class="divider"></div>') + '<h4>Заявитель</h4><div class="detail-list"><div class="detail-item"><span>Имя</span><strong>' + esc(item.applicant) + '</strong></div><div class="detail-item"><span>Email</span><strong>' + esc(item.email) + '</strong></div><div class="detail-item"><span>Телефон</span><strong>' + esc(item.phone) + '</strong></div></div><div class="divider"></div><h4>Отель</h4><div class="detail-list"><div class="detail-item"><span>Адрес</span><strong>' + esc(item.address) + '</strong></div><div class="detail-item"><span>Сайт</span><strong>' + esc(item.website) + '</strong></div><div class="detail-item"><span>Номеров</span><strong>' + item.rooms + '</strong></div></div><div class="divider"></div><h4>Документы</h4><div class="document-list">' + (item.documents.length ? item.documents.map((document) => '<div class="document">' + icon('file') + '<span class="grow text-sm">' + esc(document) + '</span><button class="btn btn-icon btn-sm" ' + documentControl + ' data-id="' + item.id + '" data-kind="' + documentKind(document) + '">' + icon('download') + '</button></div>').join('') : '<p class="text-sm muted">Документы ещё не загружены.</p>') + '</div>' + (state.me.publicDemo ? '<p class="text-sm muted">Демопросмотр. Документы и решения по заявкам доступны только в закрытом кабинете.</p>' : '<div class="modal-actions" style="display:grid;grid-template-columns:1fr 1fr"><button class="btn btn-danger" data-admin-action="reject" data-id="' + item.id + '">Отклонить</button><button class="btn" data-admin-action="request-info" data-id="' + item.id + '">Запросить данные</button><button class="btn btn-primary" style="grid-column:1/-1" data-admin-action="approve" data-id="' + item.id + '">' + icon('check') + ' Одобрить отель</button></div>') + '</aside>';
 }
 
 function renderAdminUsers() {
@@ -797,8 +801,8 @@ function render() {
 
   if (state.path === '/') app.innerHTML = renderLanding(viewClass);
   else if (state.path === '/plans') app.innerHTML = guestShell(renderSubscriptions(), viewClass);
-  else if (state.path === '/login') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderLogin(viewClass);
-  else if (state.path === '/register') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderRegister(viewClass);
+  else if (state.path === '/login') app.innerHTML = renderLogin(viewClass);
+  else if (state.path === '/register') app.innerHTML = renderRegister(viewClass);
   else if (state.path.startsWith('/app/')) {
     let content = '';
     if (state.error) content = errorBlock();
@@ -852,16 +856,12 @@ function render() {
   if (state.me.publicDemo) {
     const banner = document.createElement('aside');
     banner.className = 'public-demo-banner';
-    banner.innerHTML = '<strong>HotelX · открытая демоверсия</strong><span>Учебные данные. Брони, цены и настройки не сохраняются.</span><div><button class="btn btn-sm" data-route="/app/ai">Гость · помощник</button><button class="btn btn-sm" data-route="/hotel/ai">Владелец · помощник</button></div>';
+    banner.innerHTML = '<strong>HotelX · открытая демоверсия</strong><span>Учебные данные. Брони, цены и настройки не сохраняются.</span><div><a class="btn btn-sm" href="/hotel/dashboard" data-route="/hotel/dashboard">Кабинет отеля</a><button class="btn btn-sm" data-route="/hotel/ai">Помощник отеля</button><a class="btn btn-sm" href="/admin/dashboard" data-route="/admin/dashboard">Демо админки</a></div>';
     app.prepend(banner);
   }
   bindForms();
   setupMotion();
   positionContextMenu();
-}
-
-function renderDemoEntry() {
-  return '<main class="card demo-entry"><h1>Попробуйте HotelX</h1><p>Вход и регистрация в демоверсии не нужны. Выберите интерфейс для знакомства с учебными данными.</p><div class="row wrap"><button class="btn btn-ai" data-route="/app/ai">Помощник путешественника</button><button class="btn" data-route="/hotel/ai">Помощник владельца</button></div></main>';
 }
 
 function notFound() {
@@ -1101,7 +1101,14 @@ async function downloadVerificationDocument(button) {
 
 document.addEventListener('click', async (event) => {
   const route = event.target.closest('[data-route]');
-  if (route) { event.preventDefault(); if (!route.disabled) navigate(route.dataset.route); return; }
+  if (route) {
+    event.preventDefault();
+    if (!route.disabled) {
+      if (route.dataset.reviewId) state.selectedVerification = route.dataset.reviewId;
+      navigate(route.dataset.route);
+    }
+    return;
+  }
   const context = event.target.closest('[data-context]');
   if (context) { setContext(context.dataset.context); return; }
   const favorite = event.target.closest('[data-favorite]');
@@ -1190,8 +1197,13 @@ document.addEventListener('change', async (event) => {
 
 });
 
+function restorePagePath() {
+  state.path = state.me?.publicDemo ? demoWorkspacePath(location.pathname) : location.pathname;
+  if (state.path !== location.pathname) history.replaceState({}, '', state.path);
+}
+
 window.addEventListener('popstate', () => {
-  state.path = location.pathname;
+  restorePagePath();
   const needed = requiredContext(state.path);
   if (hasContext(needed)) state.context = needed;
   hydrateRoute().catch(handleLoadError);
@@ -1202,6 +1214,7 @@ async function init() {
   try {
     const me = await api('/api/me');
     state.me = me;
+    restorePagePath();
     state.subscription = normalizeSubscription(loadLocal(deviceKey('demo-subscription:aspan-city'), null));
     if (state.subscription) state.billingCycle = state.subscription.cycle;
     state.compare = loadLocal(deviceKey('compare'), []);

@@ -46,7 +46,7 @@ The local preview is served at `http://127.0.0.1:4173`. `npm test` builds first,
 
 ## Vercel public demo target
 
-`npm run build:vercel` produces `public/` and the ignored generated Worker module consumed by `api/entry.js`. `vercel.json` provides rewrites and strict security headers. This target injects a fixed public fixture identity, exposes personal/business demo contexts only, and rejects all writes except conversational search and comparisons. It has no D1/R2 binding or external secrets. The original Sites build and authentication checks remain unchanged. Generic frontend support displays a public-demo banner only when `/api/me` returns `publicDemo: true`. See README.md for deployment settings and limitations.
+`npm run build:vercel` produces `public/` and the ignored generated Worker module consumed by `api/entry.js`. `vercel.json` provides rewrites and strict security headers. This target injects a fixed public fixture identity, exposes hotel and read-only platform demo views; the public root and former traveller page paths open the hotel dashboard, and rejects all writes except conversational search and comparisons. The Vercel-only `/api/demo/platform/verifications` endpoint returns the static verification fixtures. Private administration endpoints and document downloads remain blocked. It has no D1/R2 binding or external secrets. The original Sites build and authentication checks remain unchanged. Generic frontend support displays a public-demo banner only when `/api/me` returns `publicDemo: true`. See README.md for deployment settings and limitations.
 
 ## Illustrative SaaS subscriptions
 

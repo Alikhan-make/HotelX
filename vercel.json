@@ -9,6 +9,10 @@
       "maxDuration": 15
     }
   },
+  "redirects": [
+    { "source": "/", "destination": "/hotel/dashboard", "permanent": false },
+    { "source": "/index.html", "destination": "/hotel/dashboard", "permanent": false }
+  ],
   "rewrites": [
     {
       "source": "/:path*",
