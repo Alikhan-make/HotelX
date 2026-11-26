@@ -13,10 +13,10 @@ async function call(path, { method = "GET", context = "personal", body, origin }
 const me = await (await call("/api/me")).json();
 assert.equal(me.publicDemo, true);
 assert.equal(me.user.id, "public-demo-visitor");
-assert.deepEqual(me.contexts.map((x) => x.id), ["business", "platform"]);
+assert.deepEqual(me.contexts.map((x) => x.id), ["personal", "business", "platform"]);
 assert.equal(me.contexts.find(x => x.id === "platform").role, "DEMO_VIEWER");
-assert.equal(me.defaultContext, "business");
-for (const path of ["/hotel/subscription", "/hotel/ai", "/hotel/dashboard", "/admin/dashboard", "/admin/verifications", "/admin/users", "/admin/hotels", "/admin/errors", "/admin/settings"]) {
+assert.equal(me.defaultContext, "personal");
+for (const path of ["/", "/app/explore", "/app/ai", "/app/search", "/app/hotel/aspan-city/booking", "/app/favorites", "/login", "/register", "/plans", "/hotel/subscription", "/hotel/ai", "/hotel/dashboard", "/admin/dashboard", "/admin/verifications", "/admin/users", "/admin/hotels", "/admin/errors", "/admin/settings"]) {
   const res = await call(path);
   assert.equal(res.status, 200, path);
   assert.match(res.headers.get("content-type"), /text\/html/);
@@ -43,12 +43,7 @@ for (const path of ["/api/bookings", "/api/applications", "/api/hotels/aspan-cit
   assert.equal((await res.json()).error, "DEMO_READ_ONLY");
 }
 assert.equal((await call("/api/admin/verifications", { context: "platform" })).status, 403);
-for (const path of ["/", "/app", "/app/ai", "/app/search", "/app/hotel/aspan-city/booking", "/app/favorites", "/login", "/register", "/signin-with-chatgpt", "/index.html"]) {
-  const redirect = await call(path);
-  assert.equal(redirect.status, 302, path);
-  assert.equal(new URL(redirect.headers.get("location")).pathname, "/hotel/dashboard", path);
-}
-assert.equal(new URL((await call("/plans")).headers.get("location")).pathname, "/hotel/subscription");
+assert.equal(new URL((await call("/signin-with-chatgpt")).headers.get("location")).pathname, "/app/explore");
 assert.equal((await call("/admin")).headers.get("location"), "https://hotelx-demo.example/admin/dashboard");
 const fixturePath = "/api/demo/platform/verifications";
 assert.equal((await call(fixturePath)).status, 403);
