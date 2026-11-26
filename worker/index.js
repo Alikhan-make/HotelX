@@ -757,6 +757,9 @@ export default {
     if (url.pathname === "/assets/app.js") return new Response(APP_JS, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=31536000, immutable", ...SECURITY_HEADERS } });
     if (url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico") return new Response(FAVICON, { headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=86400", ...SECURITY_HEADERS } });
     if (url.pathname.includes(".")) return new Response("Not found", { status: 404, headers: SECURITY_HEADERS });
-    return new Response(PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...SECURITY_HEADERS } });
+    const html = env?.HOTELX_WORKSPACE_DEMO ? PAGE
+      .replace("HotelX — AI для гостей и отелей", "HotelX — кабинет отеля")
+      .replace("HotelX — AI-платформа для поиска отелей, бронирования и управления гостиничным бизнесом.", "HotelX — управление гостиницей, аналитика загрузки и администрирование платформы.") : PAGE;
+    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", ...SECURITY_HEADERS } });
   }
 };

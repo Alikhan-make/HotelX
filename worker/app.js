@@ -259,6 +259,7 @@ function setContext(id, goHome = true) {
 
 function navigate(path) {
   const target = new URL(path, location.origin);
+  if (state.me?.publicDemo) target.pathname = demoWorkspacePath(target.pathname);
   if (target.pathname === '/register') state.intent = target.searchParams.get('intent') === 'manager' ? 'manager' : state.intent;
   const needed = requiredContext(target.pathname);
   if (state.me && needed !== state.context) {
@@ -325,7 +326,8 @@ function brand(dark = false) {
 
 function contextPopover(guest = false) {
   if (!state.contextMenu || !state.me) return '';
-  return '<div id="profile-menu" class="context-popover ' + (guest || state.contextMenuAnchor === 'top' ? 'guest-context' : '') + '"><a class="context-item subscription-menu-item" href="/plans" data-route="/plans"><span class="avatar">' + icon('card') + '</span><span class="grow"><strong>Подключить подписку</strong><span>Тарифы HotelX · демо</span></span>' + icon('chevron') + '</a><div class="divider" style="margin:7px 3px"></div><div class="text-xs muted" style="padding:8px 11px 5px;font-weight:800">КОНТЕКСТ ДОСТУПА</div>' + state.me.contexts.map((context) =>
+  const plansPath = state.me.publicDemo ? '/hotel/subscription' : '/plans';
+  return '<div id="profile-menu" class="context-popover ' + (guest || state.contextMenuAnchor === 'top' ? 'guest-context' : '') + '"><a class="context-item subscription-menu-item" href="' + plansPath + '" data-route="' + plansPath + '"><span class="avatar">' + icon('card') + '</span><span class="grow"><strong>Подключить подписку</strong><span>Тарифы HotelX · демо</span></span>' + icon('chevron') + '</a><div class="divider" style="margin:7px 3px"></div><div class="text-xs muted" style="padding:8px 11px 5px;font-weight:800">КОНТЕКСТ ДОСТУПА</div>' + state.me.contexts.map((context) =>
     '<button class="context-item ' + (context.id === state.context ? 'active' : '') + '" data-context="' + context.id + '"><span class="avatar">' + initials(context.label) + '</span><span class="grow"><strong>' + esc(context.label) + '</strong><span>' + esc(context.subtitle) + '</span></span>' + (context.id === state.context ? '<span class="context-tag">Активен</span>' : '') + '</button>'
   ).join('') + '<div class="divider" style="margin:7px 3px"></div><div class="text-xs muted" style="padding:3px 11px 8px">Контексты назначены сервером. Выбор не изменяет роль.</div></div>';
 }
@@ -511,11 +513,8 @@ function landingSections() {
 }
 
 function renderLanding(viewClass = '') {
-  const hotelEntry = state.me?.publicDemo
-    ? '<button class="btn" data-route="/hotel/dashboard">' + icon('building') + ' Кабинет отеля</button>'
-    : '<button class="btn" data-route="/register?intent=manager">' + icon('building') + ' Подключить отель</button>';
   return '<div class="landing' + viewClass + '"><nav class="landing-nav">' + brand() + '<div class="landing-links"><a href="#how">Как работает</a><a href="#plans">Тарифы</a><button class="btn-ghost" data-route="/app/explore">Для путешественников</button><button class="btn-ghost" data-route="/hotel/dashboard">Для отелей</button></div><div class="row"><button class="btn btn-ghost" data-route="/login">Войти</button><button class="btn btn-primary" data-route="/app/explore">Открыть HotelX</button></div></nav>' +
-    '<main><section class="landing-hero"><div class="landing-copy"><p class="eyebrow">Одна AI-платформа · две стороны рынка</p><h1>Нужный отель. <span>Верное решение.</span></h1><p>HotelX помогает гостям находить идеальное размещение, а отелям — прогнозировать спрос, управлять ценой и увеличивать выручку.</p><div class="hero-actions"><button class="btn btn-primary" data-route="/app/explore">' + icon('search') + ' Найти отель</button>' + hotelEntry + '</div><div class="trust-row"><span>Объяснимый AI Match</span><span>Защищённые роли</span><span>Цены в тенге</span></div></div>' +
+    '<main><section class="landing-hero"><div class="landing-copy"><p class="eyebrow">Одна AI-платформа · две стороны рынка</p><h1>Нужный отель. <span>Верное решение.</span></h1><p>HotelX помогает гостям находить идеальное размещение, а отелям — прогнозировать спрос, управлять ценой и увеличивать выручку.</p><div class="hero-actions"><button class="btn btn-primary" data-route="/app/explore">' + icon('search') + ' Найти отель</button><button class="btn" data-route="/register?intent=manager">' + icon('building') + ' Подключить отель</button></div><div class="trust-row"><span>Объяснимый AI Match</span><span>Защищённые роли</span><span>Цены в тенге</span></div></div>' +
     '<div class="hero-visual" aria-label="Современный отель"><div class="hero-match"><div class="match-ring"><span>94%</span></div><div><div class="ai-label" style="margin-bottom:4px">✦ Лучшее совпадение</div><h3>Aspan City Hotel</h3><p>Рядом с центром · завтрак включён · в рамках бюджета</p></div><button class="btn btn-sm btn-primary" data-route="/app/hotel/aspan-city">Подробнее</button></div></div></section>' +
     '<section class="value-strip" id="how"><div class="value-grid"><div class="value-item"><span class="value-number">01</span><div><h3>Спрос обычными словами</h3><p>Напишите пожелания — демопомощник подберёт отели и запомнит уточнения в диалоге.</p></div></div><div class="value-item"><span class="value-number">02</span><div><h3>Выбор с объяснением</h3><p>Сравните варианты и поймите, почему HotelX рекомендует именно этот отель.</p></div></div><div class="value-item"><span class="value-number">03</span><div><h3>Управление на данных</h3><p>Отель получает прогноз спроса и проверяемые рекомендации по цене.</p></div></div></div></section>' + landingSections() + '</main></div>';
 }
@@ -802,8 +801,8 @@ function render() {
 
   if (state.path === '/') app.innerHTML = renderLanding(viewClass);
   else if (state.path === '/plans') app.innerHTML = guestShell(renderSubscriptions(), viewClass);
-  else if (state.path === '/login') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderLogin(viewClass);
-  else if (state.path === '/register') app.innerHTML = state.me.publicDemo ? renderDemoEntry() : renderRegister(viewClass);
+  else if (state.path === '/login') app.innerHTML = renderLogin(viewClass);
+  else if (state.path === '/register') app.innerHTML = renderRegister(viewClass);
   else if (state.path.startsWith('/app/')) {
     let content = '';
     if (state.error) content = errorBlock();
@@ -857,16 +856,12 @@ function render() {
   if (state.me.publicDemo) {
     const banner = document.createElement('aside');
     banner.className = 'public-demo-banner';
-    banner.innerHTML = '<strong>HotelX · открытая демоверсия</strong><span>Учебные данные. Брони, цены и настройки не сохраняются.</span><div><button class="btn btn-sm" data-route="/app/ai">Гость · помощник</button><button class="btn btn-sm" data-route="/hotel/ai">Помощник отеля</button><a class="btn btn-sm" href="/admin/dashboard" data-route="/admin/dashboard">Демо админки</a></div>';
+    banner.innerHTML = '<strong>HotelX · открытая демоверсия</strong><span>Учебные данные. Брони, цены и настройки не сохраняются.</span><div><a class="btn btn-sm" href="/hotel/dashboard" data-route="/hotel/dashboard">Кабинет отеля</a><button class="btn btn-sm" data-route="/hotel/ai">Помощник отеля</button><a class="btn btn-sm" href="/admin/dashboard" data-route="/admin/dashboard">Демо админки</a></div>';
     app.prepend(banner);
   }
   bindForms();
   setupMotion();
   positionContextMenu();
-}
-
-function renderDemoEntry() {
-  return '<main class="card demo-entry"><h1>Попробуйте HotelX</h1><p>Вход и регистрация в демоверсии не нужны. Выберите интерфейс для знакомства с учебными данными.</p><div class="row wrap"><button class="btn btn-ai" data-route="/app/ai">Помощник путешественника</button><button class="btn" data-route="/hotel/ai">Помощник владельца</button></div></main>';
 }
 
 function notFound() {
@@ -1202,8 +1197,13 @@ document.addEventListener('change', async (event) => {
 
 });
 
+function restorePagePath() {
+  state.path = state.me?.publicDemo ? demoWorkspacePath(location.pathname) : location.pathname;
+  if (state.path !== location.pathname) history.replaceState({}, '', state.path);
+}
+
 window.addEventListener('popstate', () => {
-  state.path = location.pathname;
+  restorePagePath();
   const needed = requiredContext(state.path);
   if (hasContext(needed)) state.context = needed;
   hydrateRoute().catch(handleLoadError);
@@ -1214,6 +1214,7 @@ async function init() {
   try {
     const me = await api('/api/me');
     state.me = me;
+    restorePagePath();
     state.subscription = normalizeSubscription(loadLocal(deviceKey('demo-subscription:aspan-city'), null));
     if (state.subscription) state.billingCycle = state.subscription.cycle;
     state.compare = loadLocal(deviceKey('compare'), []);

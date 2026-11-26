@@ -1,5 +1,7 @@
 import worker, { demoVerificationFixtures } from "../vercel/worker.generated.js";
 
+import { demoWorkspacePath } from "../worker/demo-workspace.js";
+
 // This deployment exposes fixture data only. No identity, DB or secrets from Sites.
 export default {
   async fetch(request) {
@@ -25,19 +27,20 @@ export default {
       }
       return Response.json({ demo: true, verifications: demoVerificationFixtures });
     }
-    if (url.pathname === "/admin" || url.pathname === "/admin/") {
-      return Response.redirect(new URL("/admin/dashboard", url), 302);
-    }
-    if (["/signin-with-chatgpt", "/signout-with-chatgpt", "/callback"].includes(url.pathname)) {
-      return Response.redirect(new URL("/app/explore", url), 302);
+    const isPage = !url.pathname.startsWith("/api/") && !url.pathname.startsWith("/assets/") &&
+      (!url.pathname.includes(".") || url.pathname === "/index.html" || url.pathname.startsWith("/app/"));
+    if (isPage) {
+      const destination = demoWorkspacePath(url.pathname);
+      if (destination !== url.pathname) return Response.redirect(new URL(destination, url), 302);
     }
     const body = !["GET", "HEAD"].includes(request.method) ? await request.arrayBuffer() : undefined;
     const response = await worker.fetch(new Request(url, { method: request.method, headers, body }), {
-      HOTELX_LOCAL_PREVIEW: "1", HOTELX_PLATFORM_OWNER_EMAIL: "demo@hotelx.invalid"
+      HOTELX_WORKSPACE_DEMO: true, HOTELX_LOCAL_PREVIEW: "1", HOTELX_PLATFORM_OWNER_EMAIL: "demo@hotelx.invalid"
     });
     if (url.pathname === "/api/me" && response.ok) {
       const me = await response.json();
-      me.contexts = me.contexts.map(context => context.id === "platform" ? {
+      me.defaultContext = "business";
+      me.contexts = me.contexts.filter(context => context.id !== "personal").map(context => context.id === "platform" ? {
         id: "platform", label: "HotelX Platform", subtitle: "Суперадмин · демопросмотр",
         role: "DEMO_VIEWER", home: "/admin/dashboard"
       } : context);
